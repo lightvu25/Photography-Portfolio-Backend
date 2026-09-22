@@ -1,0 +1,12 @@
+CREATE TABLE pricing_packages (
+    id BIGSERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    group_size INT NOT NULL,
+    session_type VARCHAR(50) NOT NULL,
+    price BIGINT NOT NULL,
+    description TEXT,
+    sort_order INT NOT NULL DEFAULT 0,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);

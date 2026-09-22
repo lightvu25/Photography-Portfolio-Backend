@@ -1,0 +1,35 @@
+spring:
+  datasource:
+    username: sa
+    password: 
+  jpa:
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    user: sa
+    password: 
+app:
+  security:
+    jwt:
+      secret: testsecretkeymustbeatleast256bitslongsothatitworks
+      access-expiration: 3600000
+      refresh-expiration: 604800000
+  cloudinary:
+    cloud-name: dummy
+    api-key: dummy
+    api-secret: dummy
+  turnstile:
+    secret-key: dummy
+    site-key: dummy
+  bank:
+    code: MB
+    account-number: 1234
+    account-name: TEST
+    deposit-amount: 500000
+  frontend:
+    url: http://localhost:3000
+  admin:
+    email: admin@haibau.com
+    initial-password: password
