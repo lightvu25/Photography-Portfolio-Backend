@@ -34,7 +34,9 @@ public class AuthController {
                     )
             );
         } catch (org.springframework.security.core.AuthenticationException e) {
-            return ResponseEntity.status(401).body("Invalid credentials");
+            throw new com.photography.backend.common.exception.BusinessException(
+                    "Invalid credentials", "INVALID_CREDENTIALS",
+                    org.springframework.http.HttpStatus.UNAUTHORIZED);
         }
         
         UserDetails userDetails = userDetailsService.loadUserByUsername(request.getEmail());

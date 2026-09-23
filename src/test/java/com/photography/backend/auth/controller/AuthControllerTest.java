@@ -43,7 +43,7 @@ public class AuthControllerTest {
 
     @BeforeEach
     void setUp() {
-        adminUserRepository.deleteAll();
+        adminUserRepository.deleteAllInBatch();
         AdminUser user = new AdminUser();
         user.setEmail("admin@haibau.com");
         user.setPassword(passwordEncoder.encode("password"));
@@ -83,6 +83,6 @@ public class AuthControllerTest {
     @Test
     void adminEndpointsRequireAuthentication() throws Exception {
         mockMvc.perform(get("/api/admin/bookings"))
-                .andExpect(status().isForbidden()); // 403 Forbidden without token
+                .andExpect(status().isUnauthorized()); // 403 Forbidden without token
     }
 }

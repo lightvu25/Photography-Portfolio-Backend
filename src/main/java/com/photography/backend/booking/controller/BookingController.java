@@ -21,15 +21,17 @@ public class BookingController {
 
     @PostMapping
     public ResponseEntity<Booking> createBooking(@Valid @RequestBody BookingRequest request) {
-        // Only run Turnstile validation if it's not a dummy test key
-        if (!"dummy".equals(request.getTurnstileToken())) {
-            boolean isHuman = turnstileService.verify(request.getTurnstileToken());
-            if (!isHuman) {
-                throw new BusinessException("Captcha verification failed", "CAPTCHA_FAILED", HttpStatus.BAD_REQUEST);
-            }
+        if (!turnstileService.verify(request.getTurnstileToken())) {
+            throw new BusinessException("Captcha verification failed", "CAPTCHA_FAILED", HttpStatus.BAD_REQUEST);
         }
 
         Booking booking = bookingService.createBooking(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(booking);
+    }
+
+    @GetMapping("/{bookingCode}")
+    public ResponseEntity<com.photography.backend.booking.dto.BookingStatusResponse> getBookingStatus(
+            @PathVariable String bookingCode) {
+        return ResponseEntity.ok(bookingService.getBookingStatus(bookingCode));
     }
 }

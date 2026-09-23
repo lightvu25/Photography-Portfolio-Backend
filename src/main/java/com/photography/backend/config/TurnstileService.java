@@ -19,10 +19,16 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class TurnstileService {
 
+    @Value("${app.turnstile.enabled:true}")
+    private boolean enabled;
+
     @Value("${app.turnstile.secret-key}")
     private String secretKey;
 
     public boolean verify(String token) {
+        if (!enabled) {
+            return true;
+        }
         if (token == null || token.isEmpty()) {
             return false;
         }

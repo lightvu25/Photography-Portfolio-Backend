@@ -119,6 +119,13 @@
 			<scope>runtime</scope>
 		</dependency>
 
+		<!-- Jackson Hibernate module: serializes lazy-loaded associations safely -->
+		<dependency>
+			<groupId>com.fasterxml.jackson.datatype</groupId>
+			<artifactId>jackson-datatype-hibernate5-jakarta</artifactId>
+			<version>2.17.2</version>
+		</dependency>
+
 		<!-- Springdoc OpenAPI -->
 		<dependency>
 			<groupId>org.springdoc</groupId>

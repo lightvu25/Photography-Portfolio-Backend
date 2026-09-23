@@ -16,6 +16,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -46,12 +47,16 @@ public class SecurityConfig {
                 .requestMatchers("/api/categories").permitAll()
                 .requestMatchers("/api/pricing").permitAll()
                 .requestMatchers("/api/availability").permitAll()
-                .requestMatchers("/api/bookings").permitAll()
+                .requestMatchers("/api/bookings/**").permitAll()
                 .requestMatchers("/api/feedback").permitAll()
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html", "/api-docs/**").permitAll()
                 .requestMatchers("/actuator/health").permitAll()
                 .requestMatchers("/api/admin/**").authenticated()
                 .anyRequest().authenticated()
+            )
+            .exceptionHandling(e -> e
+                .authenticationEntryPoint((request, response, authException) ->
+                        response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Authentication required"))
             )
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
@@ -61,7 +66,13 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of(frontendUrl, "http://localhost:3000"));
+        List<String> origins = new java.util.ArrayList<>(List.of("http://localhost:3000"));
+        for (String origin : frontendUrl.split(",")) {
+            if (!origin.isBlank()) {
+                origins.add(origin.trim());
+            }
+        }
+        configuration.setAllowedOrigins(origins);
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("Authorization", "Content-Type"));
         configuration.setAllowCredentials(true);

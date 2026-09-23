@@ -7,6 +7,8 @@ import com.photography.backend.booking.entity.Slot;
 import com.photography.backend.booking.repository.BookingRepository;
 import com.photography.backend.booking.service.BookingService;
 
+import com.photography.backend.common.exception.BusinessException;
+import com.photography.backend.payment.repository.PaymentRepository;
 import com.photography.backend.pricing.entity.PricingPackage;
 import com.photography.backend.booking.entity.SessionType;
 import com.photography.backend.pricing.repository.PricingPackageRepository;
@@ -19,6 +21,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -41,6 +44,9 @@ public class AdminBookingControllerTest {
 
     @Autowired
     private PricingPackageRepository pricingPackageRepository;
+
+    @Autowired
+    private PaymentRepository paymentRepository;
 
     private PricingPackage pack;
 
@@ -114,5 +120,69 @@ public class AdminBookingControllerTest {
         // Cannot complete PENDING
         assertThatThrownBy(() -> adminBookingController.completeBooking(b.getId()))
                 .hasMessageContaining("Only CONFIRMED bookings");
+    }
+
+    @Test
+    void confirmationCreatesPayment() {
+        Booking b = createBooking();
+        adminBookingController.confirmBooking(b.getId());
+
+        assertThat(paymentRepository.findAll())
+                .anyMatch(p -> p.getBooking().getId().equals(b.getId()));
+    }
+
+    @Test
+    void expiredBookingCannotBeConfirmed() {
+        Booking b = createBooking();
+        b.setExpiresAt(LocalDateTime.now().minusMinutes(1));
+        bookingRepository.save(b);
+
+        assertThatThrownBy(() -> adminBookingController.confirmBooking(b.getId()))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("expired");
+
+        Booking updated = bookingRepository.findById(b.getId()).orElseThrow();
+        assertThat(updated.getStatus()).isEqualTo(BookingStatus.EXPIRED);
+        assertThat(paymentRepository.findAll()).isEmpty();
+    }
+
+    @Test
+    void rejectedBookingCannotBeConfirmed() {
+        Booking b = createBooking();
+        adminBookingController.rejectBooking(b.getId());
+
+        assertThatThrownBy(() -> adminBookingController.confirmBooking(b.getId()))
+                .hasMessageContaining("Only PENDING bookings");
+    }
+
+    @Test
+    void confirmedBookingCannotBeConfirmedAgain() {
+        Booking b = createBooking();
+        adminBookingController.confirmBooking(b.getId());
+
+        assertThatThrownBy(() -> adminBookingController.confirmBooking(b.getId()))
+                .hasMessageContaining("Only PENDING bookings");
+        assertThat(paymentRepository.findAll()).hasSize(1);
+    }
+
+    @Test
+    void rejectedBookingReleasesSlot() {
+        Booking b = createBooking();
+        adminBookingController.rejectBooking(b.getId());
+
+        Booking b2 = createBooking();
+        assertThat(b2.getId()).isNotNull();
+        assertThat(b2.getId()).isNotEqualTo(b.getId());
+    }
+
+    @Test
+    void cancelledBookingReleasesSlot() {
+        Booking b = createBooking();
+        adminBookingController.confirmBooking(b.getId());
+        adminBookingController.cancelBooking(b.getId());
+
+        Booking b2 = createBooking();
+        assertThat(b2.getId()).isNotNull();
+        assertThat(b2.getId()).isNotEqualTo(b.getId());
     }
 }

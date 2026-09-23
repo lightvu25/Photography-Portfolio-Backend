@@ -32,6 +32,7 @@ app:
     api-key: ${CLOUDINARY_API_KEY}
     api-secret: ${CLOUDINARY_API_SECRET}
   turnstile:
+    enabled: ${TURNSTILE_ENABLED:true}
     secret-key: ${TURNSTILE_SECRET_KEY}
     site-key: ${TURNSTILE_SITE_KEY}
   bank:
@@ -43,7 +44,7 @@ app:
     url: ${FRONTEND_URL:http://localhost:3000}
   admin:
     email: ${ADMIN_EMAIL:admin@haibau.com}
-    initial-password: ${ADMIN_INITIAL_PASSWORD:adminpassword}
+    initial-password: ${ADMIN_INITIAL_PASSWORD}
 
 springdoc:
   api-docs:
@@ -55,4 +56,4 @@ springdoc:
 logging:
   level:
     root: INFO
-    com.photography.backend: DEBUG
+    com.photography.backend: ${LOG_LEVEL:INFO}

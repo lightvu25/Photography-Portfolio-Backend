@@ -12,6 +12,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @RestController
@@ -34,7 +35,16 @@ public class AdminBookingController {
                 .orElseThrow(() -> new BusinessException("Booking not found", "NOT_FOUND", HttpStatus.NOT_FOUND));
 
         if (booking.getStatus() != BookingStatus.PENDING) {
-            throw new BusinessException("Only PENDING bookings can be confirmed", "INVALID_STATE", HttpStatus.BAD_REQUEST);
+            throw new BusinessException("Only PENDING bookings can be confirmed", "INVALID_STATE", HttpStatus.CONFLICT);
+        }
+
+        if (booking.getExpiresAt() != null && !booking.getExpiresAt().isAfter(LocalDateTime.now())) {
+            booking.setStatus(BookingStatus.EXPIRED);
+            for (BookingSlot slot : booking.getSlots()) {
+                slot.setStatus(BookingStatus.EXPIRED);
+            }
+            bookingRepository.save(booking);
+            throw new BusinessException("Booking hold has expired", "BOOKING_EXPIRED", HttpStatus.CONFLICT);
         }
 
         booking.setStatus(BookingStatus.CONFIRMED);
@@ -55,7 +65,7 @@ public class AdminBookingController {
                 .orElseThrow(() -> new BusinessException("Booking not found", "NOT_FOUND", HttpStatus.NOT_FOUND));
 
         if (booking.getStatus() != BookingStatus.PENDING) {
-            throw new BusinessException("Only PENDING bookings can be rejected", "INVALID_STATE", HttpStatus.BAD_REQUEST);
+            throw new BusinessException("Only PENDING bookings can be rejected", "INVALID_STATE", HttpStatus.CONFLICT);
         }
 
         booking.setStatus(BookingStatus.REJECTED);
@@ -72,7 +82,7 @@ public class AdminBookingController {
                 .orElseThrow(() -> new BusinessException("Booking not found", "NOT_FOUND", HttpStatus.NOT_FOUND));
 
         if (booking.getStatus() != BookingStatus.CONFIRMED) {
-            throw new BusinessException("Only CONFIRMED bookings can be cancelled", "INVALID_STATE", HttpStatus.BAD_REQUEST);
+            throw new BusinessException("Only CONFIRMED bookings can be cancelled", "INVALID_STATE", HttpStatus.CONFLICT);
         }
 
         booking.setStatus(BookingStatus.CANCELLED);
@@ -89,7 +99,7 @@ public class AdminBookingController {
                 .orElseThrow(() -> new BusinessException("Booking not found", "NOT_FOUND", HttpStatus.NOT_FOUND));
 
         if (booking.getStatus() != BookingStatus.CONFIRMED) {
-            throw new BusinessException("Only CONFIRMED bookings can be completed", "INVALID_STATE", HttpStatus.BAD_REQUEST);
+            throw new BusinessException("Only CONFIRMED bookings can be completed", "INVALID_STATE", HttpStatus.CONFLICT);
         }
 
         booking.setStatus(BookingStatus.COMPLETED);
