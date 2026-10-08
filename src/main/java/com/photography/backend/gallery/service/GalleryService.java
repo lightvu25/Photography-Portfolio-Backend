@@ -2,6 +2,7 @@ package com.photography.backend.gallery.service;
 
 import com.photography.backend.cloudinary.CloudinaryService;
 import com.photography.backend.common.exception.BusinessException;
+import com.photography.backend.gallery.dto.PhotoReorderItem;
 import com.photography.backend.gallery.dto.PhotoUpdateRequest;
 import com.photography.backend.gallery.entity.Category;
 import com.photography.backend.gallery.entity.Photo;
@@ -16,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -86,6 +88,21 @@ public class GalleryService {
         photo.setCategories(resolveCategories(categoryIds));
 
         return photoRepository.save(photo);
+    }
+
+    /** Atomic batch reorder — one transaction updates every affected sortOrder. */
+    @Transactional
+    public List<Photo> reorder(List<PhotoReorderItem> items) {
+        Map<Long, Integer> orders = new HashMap<>();
+        for (PhotoReorderItem item : items) orders.put(item.getId(), item.getSortOrder());
+
+        List<Photo> photos = photoRepository.findAllById(orders.keySet());
+        if (photos.size() != orders.size()) {
+            throw new BusinessException("Một hoặc nhiều ảnh không tồn tại", "NOT_FOUND", HttpStatus.NOT_FOUND);
+        }
+        for (Photo photo : photos) photo.setSortOrder(orders.get(photo.getId()));
+        photoRepository.saveAll(photos);
+        return photoRepository.findAllWithCategories();
     }
 
     @Transactional

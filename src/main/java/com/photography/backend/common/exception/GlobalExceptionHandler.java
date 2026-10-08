@@ -62,6 +62,20 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(body, HttpStatus.CONFLICT);
     }
 
+    @ExceptionHandler({org.springframework.web.multipart.MaxUploadSizeExceededException.class,
+            org.springframework.web.multipart.MultipartException.class})
+    public ResponseEntity<?> handleMultipartException(Exception ex, WebRequest request) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("timestamp", LocalDateTime.now());
+        body.put("status", HttpStatus.PAYLOAD_TOO_LARGE.value());
+        body.put("error", "PAYLOAD_TOO_LARGE");
+        body.put("message", ex instanceof org.springframework.web.multipart.MaxUploadSizeExceededException
+                ? "Uploaded file exceeds the maximum allowed size"
+                : "Malformed multipart request: " + ex.getMessage());
+        body.put("path", request.getDescription(false).replace("uri=", ""));
+        return new ResponseEntity<>(body, HttpStatus.PAYLOAD_TOO_LARGE);
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<?> handleGlobalException(Exception ex, WebRequest request) {
         log.error("Unhandled exception on {}", request.getDescription(false), ex);

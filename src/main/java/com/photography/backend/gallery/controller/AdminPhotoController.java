@@ -1,5 +1,6 @@
 package com.photography.backend.gallery.controller;
 
+import com.photography.backend.gallery.dto.PhotoReorderItem;
 import com.photography.backend.gallery.dto.PhotoUpdateRequest;
 import com.photography.backend.gallery.entity.Photo;
 import com.photography.backend.gallery.service.GalleryService;
@@ -36,6 +37,11 @@ public class AdminPhotoController {
             @RequestParam(required = false) Set<Long> categoryIds) {
         Photo photo = galleryService.uploadPhoto(file, title, description, altText, sortOrder, categoryIds);
         return ResponseEntity.status(HttpStatus.CREATED).body(photo);
+    }
+
+    @PutMapping("/reorder")
+    public ResponseEntity<List<Photo>> reorderPhotos(@Valid @RequestBody List<PhotoReorderItem> items) {
+        return ResponseEntity.ok(galleryService.reorder(items));
     }
 
     @PutMapping("/{id}")
