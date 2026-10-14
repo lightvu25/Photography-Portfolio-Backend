@@ -29,4 +29,7 @@ public class PricingPackageRequest {
     private Integer sortOrder;
 
     private Boolean isActive;
+
+    /** Optional cover image — references an existing Photo. Null clears it. */
+    private Long coverPhotoId;
 }

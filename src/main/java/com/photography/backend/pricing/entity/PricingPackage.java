@@ -1,7 +1,9 @@
 package com.photography.backend.pricing.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.photography.backend.booking.entity.SessionType;
 import com.photography.backend.common.entity.BaseEntity;
+import com.photography.backend.gallery.entity.Photo;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -37,4 +39,24 @@ public class PricingPackage extends BaseEntity {
 
     @Column(name = "is_active", nullable = false)
     private Boolean isActive = true;
+
+    /**
+     * Explicit package cover image. The Photo owns the Cloudinary URL/publicId —
+     * the package only references it. FK is ON DELETE SET NULL so deleting a
+     * photo simply clears the cover.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "cover_photo_id")
+    @JsonIgnore
+    private Photo coverPhoto;
+
+    /** Serialised as `coverPhotoId`; reading the id never initializes the proxy. */
+    public Long getCoverPhotoId() {
+        return coverPhoto == null ? null : coverPhoto.getId();
+    }
+
+    /** Serialised as `coverImageUrl`; resolved lazily while the session is open. */
+    public String getCoverImageUrl() {
+        return coverPhoto == null ? null : coverPhoto.getImageUrl();
+    }
 }

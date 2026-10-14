@@ -5,6 +5,7 @@ import com.photography.backend.common.exception.BusinessException;
 import com.photography.backend.gallery.dto.PhotoReorderItem;
 import com.photography.backend.gallery.dto.PhotoUpdateRequest;
 import com.photography.backend.gallery.entity.Category;
+import com.photography.backend.gallery.entity.CategoryType;
 import com.photography.backend.gallery.entity.Photo;
 import com.photography.backend.gallery.entity.PhotoStatus;
 import com.photography.backend.gallery.repository.CategoryRepository;
@@ -36,12 +37,26 @@ public class GalleryService {
 
     @Transactional(readOnly = true)
     public List<Photo> getPublishedPhotos() {
-        return photoRepository.findPublishedWithCategories();
+        return stripNonPortfolioCategories(photoRepository.findPublishedWithCategories());
     }
 
     @Transactional(readOnly = true)
     public List<Photo> getFeaturedPhotos() {
-        return photoRepository.findFeaturedWithCategories();
+        return stripNonPortfolioCategories(photoRepository.findFeaturedWithCategories());
+    }
+
+    /**
+     * Removes non-PORTFOLIO categories from the serialised photo payload so a
+     * photo that is public via a PORTFOLIO category does not leak the names or
+     * ids of its internal (PACKAGE-type) categories. Safe to mutate the loaded
+     * entities: readOnly transactions use FlushMode.MANUAL, so nothing is
+     * written back.
+     */
+    private List<Photo> stripNonPortfolioCategories(List<Photo> photos) {
+        for (Photo photo : photos) {
+            photo.getCategories().removeIf(c -> c.getType() != CategoryType.PORTFOLIO);
+        }
+        return photos;
     }
 
     @Transactional(readOnly = true)

@@ -20,3 +20,4 @@ services:
 
 volumes:
   haibau-postgres-data:
+ 

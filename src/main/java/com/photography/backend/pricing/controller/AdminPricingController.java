@@ -1,6 +1,7 @@
 package com.photography.backend.pricing.controller;
 
 import com.photography.backend.common.exception.BusinessException;
+import com.photography.backend.gallery.repository.PhotoRepository;
 import com.photography.backend.pricing.dto.PricingPackageRequest;
 import com.photography.backend.pricing.entity.PricingPackage;
 import com.photography.backend.pricing.repository.PricingPackageRepository;
@@ -19,6 +20,7 @@ import java.util.List;
 public class AdminPricingController {
 
     private final PricingPackageRepository repository;
+    private final PhotoRepository photoRepository;
 
     @GetMapping
     public ResponseEntity<List<PricingPackage>> getAll() {
@@ -68,5 +70,10 @@ public class AdminPricingController {
         if (request.getIsActive() != null) {
             pack.setIsActive(request.getIsActive());
         }
+        pack.setCoverPhoto(request.getCoverPhotoId() == null ? null
+                : photoRepository.findById(request.getCoverPhotoId())
+                        .orElseThrow(() -> new BusinessException(
+                                "Cover photo not found: " + request.getCoverPhotoId(),
+                                "COVER_PHOTO_NOT_FOUND", HttpStatus.BAD_REQUEST)));
     }
 }

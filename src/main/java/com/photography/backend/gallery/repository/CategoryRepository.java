@@ -6,4 +6,5 @@ import java.util.Optional;
 public interface CategoryRepository extends JpaRepository<Category, Long> {
     Optional<Category> findBySlug(String slug);
     List<Category> findAllByOrderBySortOrderAsc();
+    List<Category> findAllByTypeOrderBySortOrderAsc(com.photography.backend.gallery.entity.CategoryType type);
 }

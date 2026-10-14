@@ -93,6 +93,12 @@
 			<scope>test</scope>
 		</dependency>
 
+		<!-- Production health check (/actuator/health) for Render -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-actuator</artifactId>
+		</dependency>
+
 		<!-- Cloudinary -->
 		<dependency>
 			<groupId>com.cloudinary</groupId>

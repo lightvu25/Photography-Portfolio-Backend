@@ -9,4 +9,5 @@ public class Category extends BaseEntity {
     @Column(nullable = false) private String name;
     @Column(nullable = false, unique = true) private String slug;
     @Column(name = "sort_order", nullable = false) private Integer sortOrder = 0;
+    @Enumerated(EnumType.STRING) @Column(nullable = false) private CategoryType type = CategoryType.PORTFOLIO;
 }

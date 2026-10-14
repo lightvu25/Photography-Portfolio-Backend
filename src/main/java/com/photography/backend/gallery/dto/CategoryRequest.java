@@ -1,5 +1,6 @@
 package com.photography.backend.gallery.dto;
 
+import com.photography.backend.gallery.entity.CategoryType;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
@@ -15,4 +16,6 @@ public class CategoryRequest {
     private String slug;
 
     private Integer sortOrder;
+
+    private CategoryType type;
 }

@@ -3,6 +3,7 @@ package com.photography.backend.gallery.service;
 import com.photography.backend.common.exception.BusinessException;
 import com.photography.backend.gallery.dto.CategoryRequest;
 import com.photography.backend.gallery.entity.Category;
+import com.photography.backend.gallery.entity.CategoryType;
 import com.photography.backend.gallery.repository.CategoryRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -17,11 +18,25 @@ import java.util.Locale;
 @RequiredArgsConstructor
 public class CategoryService {
 
+    /**
+     * Reserved slug of the seeded internal ("Nội bộ") category (V10). It must
+     * stay PACKAGE-type and must not be deletable — removing it or flipping it
+     * to PORTFOLIO would silently re-expose the photos it was hiding.
+     */
+    private static final String INTERNAL_SLUG = "admin-noi-bo";
+
     private final CategoryRepository categoryRepository;
 
     @Transactional(readOnly = true)
     public List<Category> getAllCategories() {
         return categoryRepository.findAllByOrderBySortOrderAsc();
+    }
+
+    /** Public list — portfolio categories only; package categories stay admin-side. */
+    @Transactional(readOnly = true)
+    public List<Category> getPortfolioCategories() {
+        return categoryRepository.findAllByTypeOrderBySortOrderAsc(
+                com.photography.backend.gallery.entity.CategoryType.PORTFOLIO);
     }
 
     @Transactional
@@ -30,6 +45,9 @@ public class CategoryService {
         category.setName(request.getName());
         category.setSlug(resolveSlug(request));
         category.setSortOrder(request.getSortOrder() != null ? request.getSortOrder() : 0);
+        if (request.getType() != null) {
+            category.setType(request.getType());
+        }
         try {
             return categoryRepository.saveAndFlush(category);
         } catch (DataIntegrityViolationException e) {
@@ -41,10 +59,18 @@ public class CategoryService {
     public Category updateCategory(Long id, CategoryRequest request) {
         Category category = categoryRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("Category not found", "NOT_FOUND", HttpStatus.NOT_FOUND));
+        boolean reserved = INTERNAL_SLUG.equals(category.getSlug());
         category.setName(request.getName());
-        category.setSlug(resolveSlug(request));
+        category.setSlug(reserved ? INTERNAL_SLUG : resolveSlug(request));
         if (request.getSortOrder() != null) {
             category.setSortOrder(request.getSortOrder());
+        }
+        if (request.getType() != null) {
+            if (reserved && request.getType() != CategoryType.PACKAGE) {
+                throw new BusinessException("Danh mục nội bộ không thể đổi sang loại công khai",
+                        "RESERVED_CATEGORY", HttpStatus.BAD_REQUEST);
+            }
+            category.setType(request.getType());
         }
         try {
             return categoryRepository.saveAndFlush(category);
@@ -57,6 +83,10 @@ public class CategoryService {
     public void deleteCategory(Long id) {
         Category category = categoryRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("Category not found", "NOT_FOUND", HttpStatus.NOT_FOUND));
+        if (INTERNAL_SLUG.equals(category.getSlug())) {
+            throw new BusinessException("Danh mục nội bộ là danh mục hệ thống — không thể xoá",
+                    "RESERVED_CATEGORY", HttpStatus.BAD_REQUEST);
+        }
         // photo_categories rows are removed by the FK ON DELETE CASCADE
         categoryRepository.delete(category);
     }
