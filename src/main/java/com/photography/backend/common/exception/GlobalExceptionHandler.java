@@ -78,11 +78,13 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<?> handleGlobalException(Exception ex, WebRequest request) {
-        log.error("Unhandled exception on {}", request.getDescription(false), ex);
+        String errorId = java.util.UUID.randomUUID().toString().substring(0, 8);
+        log.error("Unhandled exception [{}] on {}", errorId, request.getDescription(false), ex);
         Map<String, Object> body = new HashMap<>();
         body.put("timestamp", LocalDateTime.now());
         body.put("status", HttpStatus.INTERNAL_SERVER_ERROR.value());
         body.put("error", "INTERNAL_SERVER_ERROR");
+        body.put("errorId", errorId);
         body.put("message", "An unexpected error occurred");
         body.put("path", request.getDescription(false).replace("uri=", ""));
         return new ResponseEntity<>(body, HttpStatus.INTERNAL_SERVER_ERROR);
