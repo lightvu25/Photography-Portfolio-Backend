@@ -44,7 +44,7 @@ app:
     api-secret: ${CLOUDINARY_API_SECRET}
   turnstile:
     enabled: ${TURNSTILE_ENABLED:true}
-    secret-key: ${TURNSTILE_SECRET_KEY}
+    secret-key: ${TURNSTILE_SECRET_KEY:}
     site-key: ${TURNSTILE_SITE_KEY}
   bank:
     code: ${BANK_CODE:MB}

@@ -1,29 +1,49 @@
 package com.photography.backend.config;
 
-import lombok.RequiredArgsConstructor;
+import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
 
+import java.time.Duration;
 import java.util.Map;
 
 @Service
 @Slf4j
-@RequiredArgsConstructor
 public class TurnstileService {
 
     @Value("${app.turnstile.enabled:true}")
     private boolean enabled;
 
-    @Value("${app.turnstile.secret-key}")
+    // Optional default: TURNSTILE_ENABLED=false must boot without a secret.
+    // When enabled and the secret is missing, fail fast at startup with an
+    // explicit message instead of a placeholder error or silent 400s.
+    @Value("${app.turnstile.secret-key:}")
     private String secretKey;
+
+    private RestTemplate restTemplate;
+
+    @PostConstruct
+    void init() {
+        if (enabled && (secretKey == null || secretKey.isBlank())) {
+            throw new IllegalStateException(
+                    "TURNSTILE_SECRET_KEY must be set when TURNSTILE_ENABLED=true");
+        }
+        // Bounded timeouts — an unreachable Cloudflare endpoint must not pin a
+        // request thread forever (default RestTemplate waits indefinitely).
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(Duration.ofSeconds(5));
+        factory.setReadTimeout(Duration.ofSeconds(10));
+        this.restTemplate = new RestTemplate(factory);
+    }
 
     public boolean verify(String token) {
         if (!enabled) {
@@ -34,7 +54,6 @@ public class TurnstileService {
         }
 
         try {
-            RestTemplate restTemplate = new RestTemplate();
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
 
