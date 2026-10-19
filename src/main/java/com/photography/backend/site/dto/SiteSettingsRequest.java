@@ -28,6 +28,12 @@ public class SiteSettingsRequest {
 
     private String profileCloudinaryPublicId;
 
+    /**
+     * Self-introduction photo (About section) — must reference a photo in the
+     * reserved Admin category; null clears the selection.
+     */
+    private Long profilePhotoId;
+
     @PositiveOrZero(message = "Deposit amount must not be negative")
     private Long depositAmount;
 

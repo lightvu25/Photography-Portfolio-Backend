@@ -1,5 +1,6 @@
 package com.photography.backend.site.entity;
 import com.photography.backend.common.entity.BaseEntity;
+import com.photography.backend.gallery.entity.Photo;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -21,4 +22,23 @@ public class SiteSettings extends BaseEntity {
     @Column(name = "deposit_amount", nullable = false) private Long depositAmount = 500000L;
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb") private String equipment;
+
+    /**
+     * Explicitly selected self-introduction photo — must belong to the reserved
+     * Admin category (validated in AdminSiteController).
+     */
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "profile_photo_id")
+    private Photo profilePhoto;
+
+    /**
+     * The photo the public site actually renders in the About section —
+     * resolved by SiteService (explicit selection, else first published Admin
+     * photo, else null). Transient: never persisted. The explicit @JsonProperty
+     * is required — Spring Boot propagates @Transient to Jackson as an ignore
+     * marker, which would otherwise drop this field from the API response.
+     */
+    @Transient
+    @com.fasterxml.jackson.annotation.JsonProperty
+    private Photo aboutPhoto;
 }

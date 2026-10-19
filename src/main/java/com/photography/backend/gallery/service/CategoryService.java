@@ -19,11 +19,12 @@ import java.util.Locale;
 public class CategoryService {
 
     /**
-     * Reserved slug of the seeded internal ("Nội bộ") category (V10). It must
-     * stay PACKAGE-type and must not be deletable — removing it or flipping it
-     * to PORTFOLIO would silently re-expose the photos it was hiding.
+     * Reserved slug of the internal "Admin" category (seeded V10, renamed V11).
+     * It must stay PACKAGE-type and must not be deletable — removing it or
+     * flipping it to PORTFOLIO would silently re-expose the photos it hides.
+     * A photo in this category may hold no other category (self-intro only).
      */
-    private static final String INTERNAL_SLUG = "admin-noi-bo";
+    public static final String ADMIN_CATEGORY_SLUG = "admin-noi-bo";
 
     private final CategoryRepository categoryRepository;
 
@@ -59,15 +60,15 @@ public class CategoryService {
     public Category updateCategory(Long id, CategoryRequest request) {
         Category category = categoryRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("Category not found", "NOT_FOUND", HttpStatus.NOT_FOUND));
-        boolean reserved = INTERNAL_SLUG.equals(category.getSlug());
+        boolean reserved = ADMIN_CATEGORY_SLUG.equals(category.getSlug());
         category.setName(request.getName());
-        category.setSlug(reserved ? INTERNAL_SLUG : resolveSlug(request));
+        category.setSlug(reserved ? ADMIN_CATEGORY_SLUG : resolveSlug(request));
         if (request.getSortOrder() != null) {
             category.setSortOrder(request.getSortOrder());
         }
         if (request.getType() != null) {
             if (reserved && request.getType() != CategoryType.PACKAGE) {
-                throw new BusinessException("Danh mục nội bộ không thể đổi sang loại công khai",
+                throw new BusinessException("Danh mục Admin không thể đổi sang loại công khai",
                         "RESERVED_CATEGORY", HttpStatus.BAD_REQUEST);
             }
             category.setType(request.getType());
@@ -83,8 +84,8 @@ public class CategoryService {
     public void deleteCategory(Long id) {
         Category category = categoryRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("Category not found", "NOT_FOUND", HttpStatus.NOT_FOUND));
-        if (INTERNAL_SLUG.equals(category.getSlug())) {
-            throw new BusinessException("Danh mục nội bộ là danh mục hệ thống — không thể xoá",
+        if (ADMIN_CATEGORY_SLUG.equals(category.getSlug())) {
+            throw new BusinessException("Danh mục Admin là danh mục hệ thống — không thể xoá",
                     "RESERVED_CATEGORY", HttpStatus.BAD_REQUEST);
         }
         // photo_categories rows are removed by the FK ON DELETE CASCADE

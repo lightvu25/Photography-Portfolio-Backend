@@ -62,4 +62,29 @@ public class BookingValidationTest {
                 .content(objectMapper.writeValueAsString(req)))
                 .andExpect(status().isBadRequest());
     }
+
+    /**
+     * Regression: malformed bodies (bad enum, bad date, broken JSON) used to
+     * fall through to the catch-all handler and return an unexplained 500.
+     * They are client errors and must be 400.
+     */
+    @Test
+    void malformedBodyRejectedAs400Not500() throws Exception {
+        mockMvc.perform(post("/api/bookings")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"packageId\":1,\"customerName\":\"T\",\"phone\":\"0\",\"address\":\"x\"," +
+                        "\"bookingDate\":\"2026-10-25\",\"slot\":\"NOON\",\"turnstileToken\":\"t\"}"))
+                .andExpect(status().isBadRequest());
+
+        mockMvc.perform(post("/api/bookings")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"packageId\":1,\"customerName\":\"T\",\"phone\":\"0\",\"address\":\"x\"," +
+                        "\"bookingDate\":\"25/10/2026\",\"slot\":\"MORNING\",\"turnstileToken\":\"t\"}"))
+                .andExpect(status().isBadRequest());
+
+        mockMvc.perform(post("/api/bookings")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{not json"))
+                .andExpect(status().isBadRequest());
+    }
 }

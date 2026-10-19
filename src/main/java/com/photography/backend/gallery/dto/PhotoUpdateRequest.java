@@ -18,4 +18,19 @@ public class PhotoUpdateRequest {
     private Integer sortOrder;
 
     private Set<Long> categoryIds;
+
+    /**
+     * Crop rectangle as fractions of the stored image (0..1). Applied only when
+     * all four values are present; ignored otherwise.
+     */
+    private Double cropX;
+
+    private Double cropY;
+
+    private Double cropW;
+
+    private Double cropH;
+
+    /** When true, removes any saved crop and restores the original URL. */
+    private Boolean clearCrop;
 }

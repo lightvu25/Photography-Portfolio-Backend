@@ -79,7 +79,11 @@ public class BookingService {
         }
 
         try {
-            return bookingRepository.save(booking);
+            // Flush inside the guarded block: the unique-slot insert must fail
+            // HERE as DataIntegrityViolationException → 409. With plain save()
+            // the insert defers to commit, outside this catch, where the
+            // failure surfaces as an unhandled 500 instead.
+            return bookingRepository.saveAndFlush(booking);
         } catch (DataIntegrityViolationException e) {
             log.error("Concurrent booking conflict for {} ", request.getBookingDate());
             throw new BusinessException("The selected time slot is no longer available", "BOOKING_CONFLICT", HttpStatus.CONFLICT);

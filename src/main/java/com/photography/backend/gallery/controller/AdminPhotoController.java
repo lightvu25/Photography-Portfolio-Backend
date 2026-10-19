@@ -1,5 +1,6 @@
 package com.photography.backend.gallery.controller;
 
+import com.photography.backend.gallery.dto.BulkCategoryRequest;
 import com.photography.backend.gallery.dto.PhotoReorderItem;
 import com.photography.backend.gallery.dto.PhotoUpdateRequest;
 import com.photography.backend.gallery.entity.Photo;
@@ -34,14 +35,26 @@ public class AdminPhotoController {
             @RequestParam(required = false) String description,
             @RequestParam(required = false) String altText,
             @RequestParam(required = false) Integer sortOrder,
-            @RequestParam(required = false) Set<Long> categoryIds) {
-        Photo photo = galleryService.uploadPhoto(file, title, description, altText, sortOrder, categoryIds);
+            @RequestParam(required = false) Set<Long> categoryIds,
+            @RequestParam(required = false) Double cropX,
+            @RequestParam(required = false) Double cropY,
+            @RequestParam(required = false) Double cropW,
+            @RequestParam(required = false) Double cropH) {
+        Photo photo = galleryService.uploadPhoto(file, title, description, altText, sortOrder,
+                categoryIds, cropX, cropY, cropW, cropH);
         return ResponseEntity.status(HttpStatus.CREATED).body(photo);
     }
 
     @PutMapping("/reorder")
     public ResponseEntity<List<Photo>> reorderPhotos(@Valid @RequestBody List<PhotoReorderItem> items) {
         return ResponseEntity.ok(galleryService.reorder(items));
+    }
+
+    /** Atomic bulk add/remove of categories across the selected photos. */
+    @PutMapping("/bulk-categories")
+    public ResponseEntity<List<Photo>> bulkUpdateCategories(@Valid @RequestBody BulkCategoryRequest request) {
+        return ResponseEntity.ok(galleryService.updatePhotoCategories(
+                request.getPhotoIds(), request.getAddCategoryIds(), request.getRemoveCategoryIds()));
     }
 
     @PutMapping("/{id}")

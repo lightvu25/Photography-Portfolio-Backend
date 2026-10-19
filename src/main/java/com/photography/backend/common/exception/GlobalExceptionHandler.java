@@ -40,6 +40,23 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(body, HttpStatus.BAD_REQUEST);
     }
 
+    /**
+     * Malformed request bodies — bad JSON, unknown enum value, unparseable
+     * date — are client errors. Without this they fell through to the
+     * catch-all and surfaced as an unexplained 500.
+     */
+    @ExceptionHandler(org.springframework.http.converter.HttpMessageNotReadableException.class)
+    public ResponseEntity<?> handleUnreadableBody(
+            org.springframework.http.converter.HttpMessageNotReadableException ex, WebRequest request) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("timestamp", LocalDateTime.now());
+        body.put("status", HttpStatus.BAD_REQUEST.value());
+        body.put("error", "MALFORMED_REQUEST");
+        body.put("message", "Request body is malformed or contains invalid values");
+        body.put("path", request.getDescription(false).replace("uri=", ""));
+        return new ResponseEntity<>(body, HttpStatus.BAD_REQUEST);
+    }
+
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<?> handleBusinessException(BusinessException ex, WebRequest request) {
         Map<String, Object> body = new HashMap<>();
