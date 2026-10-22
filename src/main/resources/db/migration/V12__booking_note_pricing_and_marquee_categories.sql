@@ -1,7 +1,8 @@
 -- V12: Add booking customer note ("Lưu ý với thợ"), sync official pricing
 -- packages (1.3M/2.1M, 1.7M/2.5M, 2.1M/2.9M), seed the 5 marquee portfolio
--- categories without deleting existing categories, and clear any package cover
--- photo that references the reserved Admin category ('admin-noi-bo').
+-- categories without deleting existing categories, clear any package cover
+-- photo that references the reserved Admin category ('admin-noi-bo'), and set
+-- the official photographer bio when blank.
 
 -- 1. Add optional customer note column to bookings
 ALTER TABLE bookings
@@ -57,3 +58,9 @@ VALUES
     ('Áo dài', 'ao-dai', 13, 'PORTFOLIO'),
     ('Concept', 'concept', 14, 'PORTFOLIO')
 ON CONFLICT (slug) DO NOTHING;
+
+-- 5. Set the owner's official About bio when currently null or blank
+UPDATE site_settings
+SET bio = 'Muốn tìm thợ chụp đẹp thì có rất nhiều, muốn tìm thợ đẹp zai, chụp đẹp thì hãy tìm đến anh',
+    updated_at = CURRENT_TIMESTAMP
+WHERE bio IS NULL OR BTRIM(bio) = '';

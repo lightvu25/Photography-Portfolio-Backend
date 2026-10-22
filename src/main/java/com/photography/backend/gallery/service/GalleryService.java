@@ -151,7 +151,9 @@ public class GalleryService {
             photo.setSortOrder(request.getSortOrder());
         }
         if (request.getCategoryIds() != null) {
-            photo.setCategories(resolveCategories(request.getCategoryIds()));
+            Set<Category> newCats = resolveCategories(request.getCategoryIds());
+            photo.getCategories().clear();
+            photo.getCategories().addAll(newCats);
         }
         if (Boolean.TRUE.equals(request.getClearCrop())) {
             clearCrop(photo);
@@ -178,7 +180,7 @@ public class GalleryService {
     public List<Photo> updatePhotoCategories(Set<Long> photoIds,
                                              Set<Long> addCategoryIds,
                                              Set<Long> removeCategoryIds) {
-        List<Photo> photos = photoRepository.findAllById(photoIds);
+        List<Photo> photos = photoRepository.findAllByIdInWithCategories(photoIds);
         if (photos.size() != photoIds.size()) {
             throw new BusinessException("Một hoặc nhiều ảnh không tồn tại", "NOT_FOUND", HttpStatus.NOT_FOUND);
         }
@@ -205,7 +207,9 @@ public class GalleryService {
             return next;
         }).toList();
         for (int i = 0; i < photos.size(); i++) {
-            photos.get(i).setCategories(new HashSet<>(results.get(i)));
+            Photo p = photos.get(i);
+            p.getCategories().clear();
+            p.getCategories().addAll(results.get(i));
         }
         photoRepository.saveAll(photos);
         return photoRepository.findAllWithCategories();

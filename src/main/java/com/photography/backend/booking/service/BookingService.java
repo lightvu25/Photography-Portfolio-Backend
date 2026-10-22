@@ -86,7 +86,7 @@ public class BookingService {
             return bookingRepository.saveAndFlush(booking);
         } catch (DataIntegrityViolationException e) {
             log.error("Concurrent booking conflict for {} ", request.getBookingDate());
-            throw new BusinessException("The selected time slot is no longer available", "BOOKING_CONFLICT", HttpStatus.CONFLICT);
+            throw new BusinessException("Khung giờ chụp này không còn trống hoặc vừa có khách đặt trước — vui lòng chọn ngày hoặc buổi khác.", "BOOKING_CONFLICT", HttpStatus.CONFLICT);
         }
     }
 
@@ -103,10 +103,10 @@ public class BookingService {
         LocalDateTime now = LocalDateTime.now();
         expireStalePendingSlot(date, slot, now);
         if (blockedSlotRepository.findByBlockedDateAndSlot(date, slot).isPresent()) {
-            throw new BusinessException("Slot is blocked", "SLOT_BLOCKED", HttpStatus.CONFLICT);
+            throw new BusinessException("Buổi chụp này đã bị khoá — vui lòng chọn buổi khác.", "SLOT_BLOCKED", HttpStatus.CONFLICT);
         }
         if (bookingSlotRepository.findActiveSlot(date, slot, now).isPresent()) {
-            throw new BusinessException("Slot is already booked", "BOOKING_CONFLICT", HttpStatus.CONFLICT);
+            throw new BusinessException("Buổi chụp này đã có khách đặt trước — vui lòng chọn buổi khác.", "BOOKING_CONFLICT", HttpStatus.CONFLICT);
         }
     }
 

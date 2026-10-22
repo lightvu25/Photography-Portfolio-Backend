@@ -96,7 +96,11 @@ public class CategoryService {
         String base = request.getSlug() != null && !request.getSlug().isBlank()
                 ? request.getSlug()
                 : request.getName();
-        String slug = base.toLowerCase(Locale.ROOT)
+        String normalized = java.text.Normalizer.normalize(base, java.text.Normalizer.Form.NFD)
+                .replaceAll("\\p{M}+", "")
+                .replace('đ', 'd')
+                .replace('Đ', 'D');
+        String slug = normalized.toLowerCase(Locale.ROOT)
                 .replaceAll("[^a-z0-9]+", "-")
                 .replaceAll("^-|-$", "");
         if (slug.isBlank()) {
