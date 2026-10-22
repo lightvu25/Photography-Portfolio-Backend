@@ -67,7 +67,7 @@ public class BookingApiTest {
         halfDayPackage.setName("Half Day");
         halfDayPackage.setGroupSize(1);
         halfDayPackage.setSessionType(SessionType.HALF_DAY);
-        halfDayPackage.setPrice(1200000L);
+        halfDayPackage.setPrice(1300000L);
         halfDayPackage = pricingPackageRepository.save(halfDayPackage);
     }
 
@@ -88,7 +88,8 @@ public class BookingApiTest {
         req.setPackageId(halfDayPackage.getId());
         req.setCustomerName("Api User");
         req.setPhone("0123456789");
-        req.setAddress("Test Address");
+        req.setAddress("Trường THPT Chu Văn An, Phường Thụy Khuê, Hà Nội");
+        req.setNote("Chụp thêm máy film cá nhân");
         req.setBookingDate(date);
         req.setSlot(slot);
         req.setTurnstileToken("dummy");
@@ -107,7 +108,8 @@ public class BookingApiTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(json(request(date, Slot.MORNING))))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.status", is("PENDING")));
+                .andExpect(jsonPath("$.status", is("PENDING")))
+                .andExpect(jsonPath("$.note", is("Chụp thêm máy film cá nhân")));
 
         mockMvc.perform(post("/api/bookings")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -180,6 +182,7 @@ public class BookingApiTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.bookingCode", is(booking.getBookingCode())))
                 .andExpect(jsonPath("$.status", is("PENDING")))
+                .andExpect(jsonPath("$.note", is("Chụp thêm máy film cá nhân")))
                 .andExpect(jsonPath("$.slots[0].slot", is("MORNING")))
                 .andExpect(jsonPath("$.slots[0].bookingDate", is(date.toString())));
     }

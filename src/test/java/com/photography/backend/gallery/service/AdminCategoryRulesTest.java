@@ -1,5 +1,6 @@
 package com.photography.backend.gallery.service;
 
+import com.photography.backend.booking.entity.SessionType;
 import com.photography.backend.cloudinary.CloudinaryService;
 import com.photography.backend.common.exception.BusinessException;
 import com.photography.backend.gallery.dto.PhotoUpdateRequest;
@@ -9,6 +10,9 @@ import com.photography.backend.gallery.entity.Photo;
 import com.photography.backend.gallery.entity.PhotoStatus;
 import com.photography.backend.gallery.repository.CategoryRepository;
 import com.photography.backend.gallery.repository.PhotoRepository;
+import com.photography.backend.pricing.controller.AdminPricingController;
+import com.photography.backend.pricing.dto.PricingPackageRequest;
+import com.photography.backend.site.dto.PublicSiteSettingsResponse;
 import com.photography.backend.site.entity.SiteSettings;
 import com.photography.backend.site.service.SiteService;
 import org.junit.jupiter.api.BeforeEach;
@@ -37,7 +41,9 @@ import static org.mockito.Mockito.when;
  * - excluded from public listings even if a mixed row slips into the DB;
  * - the only source for the homepage About self-introduction image;
  * - bulk edits cannot bypass it;
- * - crop bakes a Cloudinary transform without destroying the original URL.
+ * - crop bakes a Cloudinary transform without destroying the original URL;
+ * - cannot be assigned as a PricingPackage cover photo;
+ * - PublicSiteSettingsResponse strips internal photo metadata.
  */
 @SpringBootTest
 @Import(com.photography.backend.config.TestConfig.class)
@@ -49,6 +55,8 @@ public class AdminCategoryRulesTest {
     private GalleryService galleryService;
     @Autowired
     private SiteService siteService;
+    @Autowired
+    private AdminPricingController adminPricingController;
     @Autowired
     private PhotoRepository photoRepository;
     @Autowired
@@ -323,6 +331,11 @@ public class AdminCategoryRulesTest {
 
         assertThat(settings.getAboutPhoto()).isNotNull();
         assertThat(settings.getAboutPhoto().getId()).isEqualTo(adminPhoto.getId());
+
+        PublicSiteSettingsResponse publicResponse = PublicSiteSettingsResponse.from(settings);
+        assertThat(publicResponse.aboutPhoto()).isNotNull();
+        assertThat(publicResponse.aboutPhoto().id()).isEqualTo(adminPhoto.getId());
+        assertThat(publicResponse.aboutPhoto().imageUrl()).isEqualTo(adminPhoto.getImageUrl());
     }
 
     @Test
@@ -359,5 +372,23 @@ public class AdminCategoryRulesTest {
         SiteSettings settings = new SiteSettings();
         siteService.withResolvedAboutPhoto(settings);
         assertThat(settings.getAboutPhoto()).isNull();
+    }
+
+    @Test
+    void adminPhotoRejectedAsPricingPackageCover() throws IOException {
+        Photo adminPhoto = createPhoto();
+        adminPhoto.getCategories().add(admin);
+        photoRepository.save(adminPhoto);
+
+        PricingPackageRequest req = new PricingPackageRequest();
+        req.setName("Solo Half Day");
+        req.setGroupSize(1);
+        req.setSessionType(SessionType.HALF_DAY);
+        req.setPrice(1300000L);
+        req.setCoverPhotoId(adminPhoto.getId());
+
+        assertThatThrownBy(() -> adminPricingController.create(req))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("Admin");
     }
 }

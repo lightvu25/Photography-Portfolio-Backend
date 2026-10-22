@@ -171,6 +171,8 @@ public class BookingService {
         booking.setPhone(request.getPhone());
         booking.setInstagram(request.getInstagram());
         booking.setAddress(request.getAddress());
+        String trimmedNote = request.getNote() == null ? null : request.getNote().trim();
+        booking.setNote(trimmedNote == null || trimmedNote.isEmpty() ? null : trimmedNote);
         booking.setStatus(BookingStatus.PENDING);
         booking.setExpiresAt(LocalDateTime.now().plusMinutes(30));
         return booking;
@@ -196,7 +198,8 @@ public class BookingService {
                 booking.getPricingPackage().getName(),
                 slots,
                 booking.getExpiresAt(),
-                payment
+                payment,
+                booking.getNote()
         );
     }
 

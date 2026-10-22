@@ -15,7 +15,8 @@ public record BookingStatusResponse(
         String packageName,
         List<SlotInfo> slots,
         LocalDateTime expiresAt,
-        PaymentInfo payment
+        PaymentInfo payment,
+        String note
 ) {
     public record SlotInfo(LocalDate bookingDate, Slot slot) {
     }

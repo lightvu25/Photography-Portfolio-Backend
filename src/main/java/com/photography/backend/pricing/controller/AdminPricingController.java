@@ -1,7 +1,9 @@
 package com.photography.backend.pricing.controller;
 
 import com.photography.backend.common.exception.BusinessException;
+import com.photography.backend.gallery.entity.Photo;
 import com.photography.backend.gallery.repository.PhotoRepository;
+import com.photography.backend.gallery.service.CategoryService;
 import com.photography.backend.pricing.dto.PricingPackageRequest;
 import com.photography.backend.pricing.entity.PricingPackage;
 import com.photography.backend.pricing.repository.PricingPackageRepository;
@@ -70,10 +72,21 @@ public class AdminPricingController {
         if (request.getIsActive() != null) {
             pack.setIsActive(request.getIsActive());
         }
-        pack.setCoverPhoto(request.getCoverPhotoId() == null ? null
-                : photoRepository.findById(request.getCoverPhotoId())
-                        .orElseThrow(() -> new BusinessException(
-                                "Cover photo not found: " + request.getCoverPhotoId(),
-                                "COVER_PHOTO_NOT_FOUND", HttpStatus.BAD_REQUEST)));
+        if (request.getCoverPhotoId() == null) {
+            pack.setCoverPhoto(null);
+        } else {
+            Photo cover = photoRepository.findById(request.getCoverPhotoId())
+                    .orElseThrow(() -> new BusinessException(
+                            "Cover photo not found: " + request.getCoverPhotoId(),
+                            "COVER_PHOTO_NOT_FOUND", HttpStatus.BAD_REQUEST));
+            boolean isAdminPhoto = cover.getCategories().stream()
+                    .anyMatch(c -> CategoryService.ADMIN_CATEGORY_SLUG.equals(c.getSlug()));
+            if (isAdminPhoto) {
+                throw new BusinessException(
+                        "Photos in the Admin category cannot be used as a package cover photo",
+                        "ADMIN_PHOTO_FORBIDDEN_AS_COVER", HttpStatus.BAD_REQUEST);
+            }
+            pack.setCoverPhoto(cover);
+        }
     }
 }

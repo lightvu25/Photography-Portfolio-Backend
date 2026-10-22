@@ -4,6 +4,7 @@ import com.photography.backend.booking.entity.Slot;
 import jakarta.validation.constraints.FutureOrPresent;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 import java.time.LocalDate;
@@ -31,6 +32,9 @@ public class BookingRequest {
 
     @NotBlank(message = "Address is required")
     private String address;
+
+    @Size(max = 1000, message = "Note must not exceed 1000 characters")
+    private String note;
 
     @NotBlank(message = "Turnstile token is required")
     private String turnstileToken;

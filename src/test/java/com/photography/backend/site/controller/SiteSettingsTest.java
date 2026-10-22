@@ -54,6 +54,8 @@ public class SiteSettingsTest {
         req.setInstagramUrl("https://instagram.com/haibau");
         req.setFacebookUrl("https://facebook.com/haibau");
         req.setMessengerUrl("https://m.me/haibau");
+        req.setHeroCloudinaryPublicId("haibau/hero/internal-id");
+        req.setProfileCloudinaryPublicId("haibau/profile/internal-id");
         req.setDepositAmount(500000L);
         req.setEquipment("[\"Sony A7IV\"]");
         return req;
@@ -89,12 +91,16 @@ public class SiteSettingsTest {
                 .andReturn();
 
         JsonNode body = objectMapper.readTree(result.getResponse().getContentAsString());
+        assertThat(body.has("heroCloudinaryPublicId")).isFalse();
+        assertThat(body.has("profileCloudinaryPublicId")).isFalse();
+        assertThat(body.has("profilePhoto")).isFalse();
         body.fieldNames().forEachRemaining(field ->
                 assertThat(field.toLowerCase())
                         .doesNotContain("secret")
                         .doesNotContain("password")
                         .doesNotContain("apikey")
-                        .doesNotContain("api_key"));
+                        .doesNotContain("api_key")
+                        .doesNotContain("cloudinarypublicid"));
     }
 
     @Test

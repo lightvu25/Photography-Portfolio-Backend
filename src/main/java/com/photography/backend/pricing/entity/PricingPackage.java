@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.photography.backend.booking.entity.SessionType;
 import com.photography.backend.common.entity.BaseEntity;
 import com.photography.backend.gallery.entity.Photo;
+import com.photography.backend.gallery.service.CategoryService;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -50,13 +51,26 @@ public class PricingPackage extends BaseEntity {
     @JsonIgnore
     private Photo coverPhoto;
 
-    /** Serialised as `coverPhotoId`; reading the id never initializes the proxy. */
-    public Long getCoverPhotoId() {
-        return coverPhoto == null ? null : coverPhoto.getId();
+    private boolean isAdminCategoryCover() {
+        return coverPhoto != null
+                && coverPhoto.getCategories() != null
+                && coverPhoto.getCategories().stream()
+                        .anyMatch(c -> CategoryService.ADMIN_CATEGORY_SLUG.equals(c.getSlug()));
     }
 
-    /** Serialised as `coverImageUrl`; resolved lazily while the session is open. */
+    /** Serialised as `coverPhotoId`; never exposes a reserved Admin-category photo. */
+    public Long getCoverPhotoId() {
+        if (coverPhoto == null || isAdminCategoryCover()) {
+            return null;
+        }
+        return coverPhoto.getId();
+    }
+
+    /** Serialised as `coverImageUrl`; never exposes a reserved Admin-category photo. */
     public String getCoverImageUrl() {
-        return coverPhoto == null ? null : coverPhoto.getImageUrl();
+        if (coverPhoto == null || isAdminCategoryCover()) {
+            return null;
+        }
+        return coverPhoto.getImageUrl();
     }
 }

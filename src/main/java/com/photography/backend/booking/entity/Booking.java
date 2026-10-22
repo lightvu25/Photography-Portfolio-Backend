@@ -39,6 +39,9 @@ public class Booking extends BaseEntity {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String address;
 
+    @Column(columnDefinition = "TEXT")
+    private String note;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private BookingStatus status = BookingStatus.PENDING;
