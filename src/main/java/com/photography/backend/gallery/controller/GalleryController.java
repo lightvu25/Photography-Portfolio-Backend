@@ -22,6 +22,12 @@ public class GalleryController {
         return ResponseEntity.ok(galleryService.getPublishedPhotos());
     }
 
+    /** Published customer-feedback screenshots (Feedback category only). */
+    @GetMapping("/feedback")
+    public ResponseEntity<List<Photo>> getFeedbackPhotos() {
+        return ResponseEntity.ok(galleryService.getPublishedFeedbackPhotos());
+    }
+
     @GetMapping("/featured")
     public ResponseEntity<List<Photo>> getFeaturedPhotos() {
         return ResponseEntity.ok(galleryService.getFeaturedPhotos());

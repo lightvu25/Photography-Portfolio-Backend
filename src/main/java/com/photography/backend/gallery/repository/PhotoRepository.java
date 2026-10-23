@@ -21,7 +21,14 @@ public interface PhotoRepository extends JpaRepository<Photo, Long> {
     // self-introduction slot only and must never leak via a mixed assignment.
     String PUBLIC_ONLY = " AND (p.categories IS EMPTY OR EXISTS ("
             + "SELECT 1 FROM p.categories c WHERE c.type = com.photography.backend.gallery.entity.CategoryType.PORTFOLIO))"
-            + " AND NOT EXISTS (SELECT 1 FROM p.categories r WHERE r.slug = 'admin-noi-bo')";
+            + " AND NOT EXISTS (SELECT 1 FROM p.categories r WHERE r.slug = 'admin-noi-bo')"
+            + " AND NOT EXISTS (SELECT 1 FROM p.categories f WHERE f.type = com.photography.backend.gallery.entity.CategoryType.FEEDBACK)";
+
+    /** Published photos in the reserved Feedback category — feedback marquee only. */
+    @Query("SELECT DISTINCT p FROM Photo p LEFT JOIN FETCH p.categories WHERE p.status = 'PUBLISHED'"
+            + " AND EXISTS (SELECT 1 FROM p.categories f WHERE f.type = com.photography.backend.gallery.entity.CategoryType.FEEDBACK)"
+            + " ORDER BY p.sortOrder, p.id")
+    List<Photo> findPublishedFeedbackPhotos();
 
     @Query("SELECT DISTINCT p FROM Photo p LEFT JOIN FETCH p.categories WHERE p.status = 'PUBLISHED'" + PUBLIC_ONLY + " ORDER BY p.sortOrder")
     List<Photo> findPublishedWithCategories();

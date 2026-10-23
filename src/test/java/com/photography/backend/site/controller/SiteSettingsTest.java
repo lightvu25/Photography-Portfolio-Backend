@@ -120,6 +120,17 @@ public class SiteSettingsTest {
     }
 
     @Test
+    void blankEquipmentIsStoredAsNullInsteadOfFailingOnJsonb() {
+        SiteSettingsRequest req = sampleRequest();
+        req.setEquipment("");
+
+        adminSiteController.updateSettings(req);
+
+        SiteSettings saved = siteSettingsRepository.findAll().get(0);
+        assertThat(saved.getEquipment()).isNull();
+    }
+
+    @Test
     void blankPhotographerNameFailsValidation() {
         SiteSettingsRequest req = sampleRequest();
         req.setPhotographerName("");

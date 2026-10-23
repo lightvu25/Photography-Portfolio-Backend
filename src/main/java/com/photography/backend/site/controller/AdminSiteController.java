@@ -7,6 +7,7 @@ import com.photography.backend.gallery.service.CategoryService;
 import com.photography.backend.site.dto.SiteSettingsRequest;
 import com.photography.backend.site.entity.SiteSettings;
 import com.photography.backend.site.repository.SiteSettingsRepository;
+import com.photography.backend.site.service.EquipmentJson;
 import com.photography.backend.site.service.SiteService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -51,7 +52,7 @@ public class AdminSiteController {
         if (request.getDepositAmount() != null) {
             settings.setDepositAmount(request.getDepositAmount());
         }
-        settings.setEquipment(request.getEquipment());
+        settings.setEquipment(EquipmentJson.normalize(request.getEquipment()));
 
         return ResponseEntity.ok(repository.save(settings));
     }

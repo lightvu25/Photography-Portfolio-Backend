@@ -40,6 +40,16 @@ public class GalleryService {
         return stripNonPortfolioCategories(photoRepository.findPublishedWithCategories());
     }
 
+    /** Customer-feedback screenshots (reserved Feedback category), published only. */
+    @Transactional(readOnly = true)
+    public List<Photo> getPublishedFeedbackPhotos() {
+        List<Photo> photos = photoRepository.findPublishedFeedbackPhotos();
+        for (Photo photo : photos) {
+            photo.getCategories().clear();
+        }
+        return photos;
+    }
+
     @Transactional(readOnly = true)
     public List<Photo> getFeaturedPhotos() {
         return stripNonPortfolioCategories(photoRepository.findFeaturedWithCategories());

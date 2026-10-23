@@ -26,6 +26,9 @@ public class CategoryService {
      */
     public static final String ADMIN_CATEGORY_SLUG = "admin-noi-bo";
 
+    /** Reserved slug of the Feedback category (seeded V15) — customer feedback screenshots. */
+    public static final String FEEDBACK_CATEGORY_SLUG = "feedback";
+
     private final CategoryRepository categoryRepository;
 
     @Transactional(readOnly = true)
@@ -61,14 +64,19 @@ public class CategoryService {
         Category category = categoryRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("Category not found", "NOT_FOUND", HttpStatus.NOT_FOUND));
         boolean reserved = ADMIN_CATEGORY_SLUG.equals(category.getSlug());
+        boolean feedbackReserved = FEEDBACK_CATEGORY_SLUG.equals(category.getSlug());
         category.setName(request.getName());
-        category.setSlug(reserved ? ADMIN_CATEGORY_SLUG : resolveSlug(request));
+        category.setSlug(reserved ? ADMIN_CATEGORY_SLUG : feedbackReserved ? FEEDBACK_CATEGORY_SLUG : resolveSlug(request));
         if (request.getSortOrder() != null) {
             category.setSortOrder(request.getSortOrder());
         }
         if (request.getType() != null) {
             if (reserved && request.getType() != CategoryType.PACKAGE) {
                 throw new BusinessException("Danh mục Admin không thể đổi sang loại công khai",
+                        "RESERVED_CATEGORY", HttpStatus.BAD_REQUEST);
+            }
+            if (feedbackReserved && request.getType() != CategoryType.FEEDBACK) {
+                throw new BusinessException("Danh mục Feedback không thể đổi loại",
                         "RESERVED_CATEGORY", HttpStatus.BAD_REQUEST);
             }
             category.setType(request.getType());
@@ -86,6 +94,10 @@ public class CategoryService {
                 .orElseThrow(() -> new BusinessException("Category not found", "NOT_FOUND", HttpStatus.NOT_FOUND));
         if (ADMIN_CATEGORY_SLUG.equals(category.getSlug())) {
             throw new BusinessException("Danh mục Admin là danh mục hệ thống — không thể xoá",
+                    "RESERVED_CATEGORY", HttpStatus.BAD_REQUEST);
+        }
+        if (FEEDBACK_CATEGORY_SLUG.equals(category.getSlug())) {
+            throw new BusinessException("Danh mục Feedback là danh mục hệ thống — không thể xoá",
                     "RESERVED_CATEGORY", HttpStatus.BAD_REQUEST);
         }
         // photo_categories rows are removed by the FK ON DELETE CASCADE

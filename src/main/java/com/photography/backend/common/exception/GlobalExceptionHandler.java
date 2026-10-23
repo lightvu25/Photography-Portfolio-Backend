@@ -11,6 +11,7 @@ import org.springframework.web.context.request.WebRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
@@ -70,12 +71,27 @@ public class GlobalExceptionHandler {
     
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<?> handleDataIntegrityViolation(DataIntegrityViolationException ex, WebRequest request) {
+        // Log the real cause server-side (never returned to the client) so the
+        // status here can be traced to the exact constraint / bad value.
+        Throwable root = ex.getMostSpecificCause();
+        String sqlState = root instanceof SQLException sql ? sql.getSQLState() : null;
+        log.warn("Data integrity violation on {} [sqlState={}]: {}",
+                request.getDescription(false), sqlState, root.getMessage());
+
         Map<String, Object> body = new HashMap<>();
         body.put("timestamp", LocalDateTime.now());
+        body.put("path", request.getDescription(false).replace("uri=", ""));
+        // SQLState class 22 = data exception (malformed value, value too long…):
+        // the request itself is invalid, not in conflict with existing data.
+        if (sqlState != null && sqlState.startsWith("22")) {
+            body.put("status", HttpStatus.BAD_REQUEST.value());
+            body.put("error", "INVALID_DATA");
+            body.put("message", "Dữ liệu gửi lên không hợp lệ hoặc quá dài");
+            return new ResponseEntity<>(body, HttpStatus.BAD_REQUEST);
+        }
         body.put("status", HttpStatus.CONFLICT.value());
         body.put("error", "CONFLICT");
         body.put("message", "The request conflicts with existing data");
-        body.put("path", request.getDescription(false).replace("uri=", ""));
         return new ResponseEntity<>(body, HttpStatus.CONFLICT);
     }
 

@@ -313,6 +313,33 @@ public class AdminCategoryRulesTest {
                 .isInstanceOf(BusinessException.class);
     }
 
+    // ---------- feedback category ----------
+
+    @Test
+    void feedbackPhotosOnlyAppearInFeedbackList() throws IOException {
+        Category feedback = category("Feedback", CategoryService.FEEDBACK_CATEGORY_SLUG, CategoryType.FEEDBACK);
+        Photo feedbackPhoto = createPhoto();
+        Photo mixedPhoto = createPhoto();
+        Photo normalPhoto = createPhoto();
+        feedbackPhoto.getCategories().add(feedback);
+        mixedPhoto.getCategories().add(feedback);
+        mixedPhoto.getCategories().add(portrait);
+        normalPhoto.getCategories().add(portrait);
+        photoRepository.save(feedbackPhoto);
+        photoRepository.save(mixedPhoto);
+        photoRepository.save(normalPhoto);
+        galleryService.publish(feedbackPhoto.getId());
+        galleryService.publish(mixedPhoto.getId());
+        galleryService.publish(normalPhoto.getId());
+
+        assertThat(galleryService.getPublishedFeedbackPhotos())
+                .extracting(Photo::getId)
+                .containsExactlyInAnyOrder(feedbackPhoto.getId(), mixedPhoto.getId());
+        assertThat(galleryService.getPublishedPhotos())
+                .extracting(Photo::getId)
+                .containsExactly(normalPhoto.getId());
+    }
+
     // ---------- About self-introduction resolution ----------
 
     @Test
