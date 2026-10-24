@@ -5,6 +5,7 @@ import com.photography.backend.booking.entity.BookingSlot;
 import com.photography.backend.booking.entity.BookingStatus;
 import com.photography.backend.booking.repository.BookingRepository;
 import com.photography.backend.common.exception.BusinessException;
+import com.photography.backend.payment.repository.PaymentRepository;
 import com.photography.backend.payment.service.PaymentService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -21,6 +22,7 @@ import java.util.List;
 public class AdminBookingController {
 
     private final BookingRepository bookingRepository;
+    private final PaymentRepository paymentRepository;
     private final PaymentService paymentService;
 
     @GetMapping
@@ -74,7 +76,7 @@ public class AdminBookingController {
         }
         return ResponseEntity.ok(bookingRepository.save(booking));
     }
-    
+
     @PostMapping("/{id}/cancel")
     @Transactional
     public ResponseEntity<Booking> cancelBooking(@PathVariable Long id) {
@@ -91,7 +93,7 @@ public class AdminBookingController {
         }
         return ResponseEntity.ok(bookingRepository.save(booking));
     }
-    
+
     @PostMapping("/{id}/complete")
     @Transactional
     public ResponseEntity<Booking> completeBooking(@PathVariable Long id) {
@@ -107,5 +109,20 @@ public class AdminBookingController {
             slot.setStatus(BookingStatus.COMPLETED);
         }
         return ResponseEntity.ok(bookingRepository.save(booking));
+    }
+
+    @DeleteMapping("/{id}")
+    @Transactional
+    public ResponseEntity<Void> deleteBooking(@PathVariable Long id) {
+        Booking booking = bookingRepository.findById(id)
+                .orElseThrow(() -> new BusinessException("Booking not found", "NOT_FOUND", HttpStatus.NOT_FOUND));
+
+        paymentRepository.findByBookingId(id).ifPresent(payment -> {
+            paymentRepository.delete(payment);
+            paymentRepository.flush();
+        });
+
+        bookingRepository.delete(booking);
+        return ResponseEntity.noContent().build();
     }
 }
