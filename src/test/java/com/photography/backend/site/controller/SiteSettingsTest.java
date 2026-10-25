@@ -57,6 +57,9 @@ public class SiteSettingsTest {
         req.setHeroCloudinaryPublicId("haibau/hero/internal-id");
         req.setProfileCloudinaryPublicId("haibau/profile/internal-id");
         req.setDepositAmount(500000L);
+        req.setClientsCount(100);
+        req.setConceptsCount(10);
+        req.setExperienceYears(2);
         req.setEquipment("[\"Sony A7IV\"]");
         return req;
     }
@@ -88,6 +91,9 @@ public class SiteSettingsTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.photographerName", is("Hai Bau")))
                 .andExpect(jsonPath("$.instagramUrl", is("https://instagram.com/haibau")))
+                .andExpect(jsonPath("$.clientsCount", is(100)))
+                .andExpect(jsonPath("$.conceptsCount", is(10)))
+                .andExpect(jsonPath("$.experienceYears", is(2)))
                 .andReturn();
 
         JsonNode body = objectMapper.readTree(result.getResponse().getContentAsString());
@@ -136,6 +142,26 @@ public class SiteSettingsTest {
         req.setPhotographerName("");
 
         assertThat(validator.validate(req)).isNotEmpty();
+    }
+
+    @Test
+    void negativeStatsFailValidationAndNullStatsPreserveExistingValues() {
+        adminSiteController.updateSettings(sampleRequest());
+
+        SiteSettingsRequest partialUpdate = sampleRequest();
+        partialUpdate.setClientsCount(null);
+        partialUpdate.setConceptsCount(null);
+        partialUpdate.setExperienceYears(null);
+        adminSiteController.updateSettings(partialUpdate);
+
+        SiteSettings saved = siteSettingsRepository.findAll().get(0);
+        assertThat(saved.getClientsCount()).isEqualTo(100);
+        assertThat(saved.getConceptsCount()).isEqualTo(10);
+        assertThat(saved.getExperienceYears()).isEqualTo(2);
+
+        SiteSettingsRequest invalid = sampleRequest();
+        invalid.setClientsCount(-1);
+        assertThat(validator.validate(invalid)).isNotEmpty();
     }
 
     @Autowired

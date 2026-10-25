@@ -52,6 +52,15 @@ public class AdminSiteController {
         if (request.getDepositAmount() != null) {
             settings.setDepositAmount(request.getDepositAmount());
         }
+        if (request.getClientsCount() != null) {
+            settings.setClientsCount(request.getClientsCount());
+        }
+        if (request.getConceptsCount() != null) {
+            settings.setConceptsCount(request.getConceptsCount());
+        }
+        if (request.getExperienceYears() != null) {
+            settings.setExperienceYears(request.getExperienceYears());
+        }
         settings.setEquipment(EquipmentJson.normalize(request.getEquipment()));
 
         return ResponseEntity.ok(repository.save(settings));

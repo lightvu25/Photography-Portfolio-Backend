@@ -20,6 +20,9 @@ public class SiteSettings extends BaseEntity {
     @Column(name = "profile_image_url") private String profileImageUrl;
     @Column(name = "profile_cloudinary_public_id") private String profileCloudinaryPublicId;
     @Column(name = "deposit_amount", nullable = false) private Long depositAmount = 500000L;
+    @Column(name = "clients_count", nullable = false) private Integer clientsCount = 100;
+    @Column(name = "concepts_count", nullable = false) private Integer conceptsCount = 10;
+    @Column(name = "experience_years", nullable = false) private Integer experienceYears = 2;
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb") private String equipment;
 

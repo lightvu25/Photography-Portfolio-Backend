@@ -1,5 +1,6 @@
 package com.photography.backend.site.dto;
 
+import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.PositiveOrZero;
 import lombok.Data;
@@ -36,6 +37,18 @@ public class SiteSettingsRequest {
 
     @PositiveOrZero(message = "Deposit amount must not be negative")
     private Long depositAmount;
+
+    @PositiveOrZero(message = "Clients count must not be negative")
+    @Max(value = 999999, message = "Clients count is too large")
+    private Integer clientsCount;
+
+    @PositiveOrZero(message = "Concepts count must not be negative")
+    @Max(value = 999999, message = "Concepts count is too large")
+    private Integer conceptsCount;
+
+    @PositiveOrZero(message = "Experience years must not be negative")
+    @Max(value = 999, message = "Experience years is too large")
+    private Integer experienceYears;
 
     private String equipment;
 }
