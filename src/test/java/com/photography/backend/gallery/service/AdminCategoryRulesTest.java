@@ -262,8 +262,48 @@ public class AdminCategoryRulesTest {
         assertThat(saved.getImageUrl())
                 .isEqualTo("https://res.cloudinary.com/demo/image/upload/c_crop,x_0.1,y_0.2,w_0.5,h_0.5/v1/haibau/photos/abc.jpg");
         assertThat(saved.getOriginalImageUrl()).isEqualTo(original);
-        assertThat(saved.getThumbnailUrl()).contains("c_crop").contains("w_400,c_fill,q_auto");
+        assertThat(saved.getThumbnailUrl()).contains("c_crop").contains("w_600,c_limit,q_auto");
         assertThat(saved.getCropW()).isEqualTo(0.5);
+    }
+
+    @Test
+    void cropClampsSubPixelBrowserRoundingAndFormatsFullDimensionAsDecimal() throws IOException {
+        Photo photo = createPhoto();
+
+        PhotoUpdateRequest req = new PhotoUpdateRequest();
+        req.setCropX(-0.0008);
+        req.setCropY(-0.0005);
+        req.setCropW(1.0012);
+        req.setCropH(1.0009);
+        galleryService.updatePhoto(photo.getId(), req);
+
+        Photo saved = galleryService.getPhoto(photo.getId());
+        assertThat(saved.getCropX()).isEqualTo(0.0);
+        assertThat(saved.getCropY()).isEqualTo(0.0);
+        assertThat(saved.getCropW()).isEqualTo(1.0);
+        assertThat(saved.getCropH()).isEqualTo(1.0);
+        assertThat(saved.getImageUrl()).contains("c_crop,x_0,y_0,w_1.0,h_1.0/");
+    }
+
+    @Test
+    void packageCategoryPhotosExcludedFromPublicGalleryEvenWhenMixed() throws IOException {
+        Photo pkgOnly = createPhoto();
+        Photo pkgAndPortrait = createPhoto();
+        Photo portraitOnly = createPhoto();
+        pkgOnly.getCategories().add(packageCat);
+        pkgAndPortrait.getCategories().add(packageCat);
+        pkgAndPortrait.getCategories().add(portrait);
+        portraitOnly.getCategories().add(portrait);
+        photoRepository.save(pkgOnly);
+        photoRepository.save(pkgAndPortrait);
+        photoRepository.save(portraitOnly);
+        galleryService.publish(pkgOnly.getId());
+        galleryService.publish(pkgAndPortrait.getId());
+        galleryService.publish(portraitOnly.getId());
+
+        assertThat(galleryService.getPublishedPhotos())
+                .extracting(Photo::getId)
+                .containsExactly(portraitOnly.getId());
     }
 
     @Test

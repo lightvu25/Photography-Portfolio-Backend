@@ -39,18 +39,30 @@ public class CategoryService {
     /** Public list — portfolio categories only; package categories stay admin-side. */
     @Transactional(readOnly = true)
     public List<Category> getPortfolioCategories() {
-        return categoryRepository.findAllByTypeOrderBySortOrderAsc(
-                com.photography.backend.gallery.entity.CategoryType.PORTFOLIO);
+        return categoryRepository.findAllByTypeOrderBySortOrderAsc(CategoryType.PORTFOLIO)
+                .stream()
+                .filter(c -> !isPackageNaming(c.getName(), c.getSlug()))
+                .toList();
+    }
+
+    private boolean isPackageNaming(String name, String slug) {
+        String n = name != null ? name.trim().toLowerCase(Locale.ROOT) : "";
+        String s = slug != null ? slug.trim().toLowerCase(Locale.ROOT) : "";
+        return n.startsWith("gói") || n.startsWith("package")
+                || s.startsWith("goi-") || s.startsWith("package");
     }
 
     @Transactional
     public Category createCategory(CategoryRequest request) {
         Category category = new Category();
         category.setName(request.getName());
-        category.setSlug(resolveSlug(request));
+        String resolvedSlug = resolveSlug(request);
+        category.setSlug(resolvedSlug);
         category.setSortOrder(request.getSortOrder() != null ? request.getSortOrder() : 0);
         if (request.getType() != null) {
             category.setType(request.getType());
+        } else if (isPackageNaming(request.getName(), resolvedSlug)) {
+            category.setType(CategoryType.PACKAGE);
         }
         try {
             return categoryRepository.saveAndFlush(category);

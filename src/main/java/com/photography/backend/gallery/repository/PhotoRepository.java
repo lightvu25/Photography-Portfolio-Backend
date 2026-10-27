@@ -14,14 +14,14 @@ public interface PhotoRepository extends JpaRepository<Photo, Long> {
     List<Photo> findByStatusOrderBySortOrderAsc(PhotoStatus status);
     List<Photo> findByStatusAndIsFeaturedTrueOrderBySortOrderAsc(PhotoStatus status);
 
-    // Public gallery hides photos that are only categorised under PACKAGE-type
-    // categories (pricing cover images). Photos with a PORTFOLIO category — or
-    // none — still show, so one photo may serve both purposes. The reserved
-    // 'admin-noi-bo' category is additionally excluded outright: it is for the
-    // self-introduction slot only and must never leak via a mixed assignment.
+    // Public gallery hides photos that belong to PACKAGE-type categories
+    // (pricing cover images), Feedback screenshots, or the reserved 'admin-noi-bo'
+    // self-introduction category.
     String PUBLIC_ONLY = " AND (p.categories IS EMPTY OR EXISTS ("
             + "SELECT 1 FROM p.categories c WHERE c.type = com.photography.backend.gallery.entity.CategoryType.PORTFOLIO))"
             + " AND NOT EXISTS (SELECT 1 FROM p.categories r WHERE r.slug = 'admin-noi-bo')"
+            + " AND NOT EXISTS (SELECT 1 FROM p.categories pkg WHERE pkg.type = com.photography.backend.gallery.entity.CategoryType.PACKAGE"
+            + " OR LOWER(pkg.slug) LIKE 'goi-%' OR LOWER(pkg.name) LIKE 'gói%')"
             + " AND NOT EXISTS (SELECT 1 FROM p.categories f WHERE f.type = com.photography.backend.gallery.entity.CategoryType.FEEDBACK)";
 
     /** Published photos in the reserved Feedback category — feedback marquee only. */

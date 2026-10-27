@@ -101,7 +101,7 @@ public class GalleryServiceTest {
         assertThat(photo.getId()).isNotNull();
         assertThat(photo.getImageUrl()).isEqualTo("https://res.cloudinary.com/demo/image/upload/v1/haibau/photos/abc.jpg");
         assertThat(photo.getCloudinaryPublicId()).isEqualTo("haibau/photos/abc");
-        assertThat(photo.getThumbnailUrl()).contains("/upload/w_400,c_fill,q_auto/");
+        assertThat(photo.getThumbnailUrl()).contains("/upload/w_600,c_limit,q_auto/");
         assertThat(photo.getStatus()).isEqualTo(PhotoStatus.DRAFT);
         verify(cloudinaryService).uploadFile(any(), eq(GalleryService.PHOTO_FOLDER));
     }

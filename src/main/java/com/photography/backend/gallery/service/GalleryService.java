@@ -299,22 +299,34 @@ public class GalleryService {
      * keeping the pristine upload URL for re-editing. Cloudinary accepts
      * decimal fractions (w_0.5 = 50% of the stored image), so the saved crop
      * stays correct regardless of the resolution actually uploaded.
+     *
+     * Small sub-pixel overshoots from browser DOM rounding (e.g. -0.001 or
+     * 1.002 from react-easy-crop) are clamped to [0, 1] rather than rejected.
      */
     private void applyCrop(Photo photo, double x, double y, double w, double h) {
-        if (x < 0 || y < 0 || w <= 0 || h <= 0 || x >= 1 || y >= 1 || w > 1 || h > 1
-                || x + w > 1.0001 || y + h > 1.0001) {
+        if (Double.isNaN(x) || Double.isNaN(y) || Double.isNaN(w) || Double.isNaN(h)
+                || Double.isInfinite(x) || Double.isInfinite(y) || Double.isInfinite(w) || Double.isInfinite(h)
+                || x < -0.05 || y < -0.05 || w <= 0 || h <= 0
+                || x >= 1 || y >= 1 || w > 1.05 || h > 1.05
+                || x + w > 1.05 || y + h > 1.05) {
             throw new BusinessException("Vùng cắt không hợp lệ", "INVALID_CROP", HttpStatus.BAD_REQUEST);
         }
+        double clampedX = Math.max(0.0, Math.min(x, 0.9999));
+        double clampedY = Math.max(0.0, Math.min(y, 0.9999));
+        double clampedW = Math.max(0.0001, Math.min(w, 1.0 - clampedX));
+        double clampedH = Math.max(0.0001, Math.min(h, 1.0 - clampedY));
+
         String original = photo.getOriginalImageUrl() != null
                 ? photo.getOriginalImageUrl() : photo.getImageUrl();
-        String transform = "c_crop,x_" + fmt(x) + ",y_" + fmt(y) + ",w_" + fmt(w) + ",h_" + fmt(h);
+        String transform = "c_crop,x_" + fmt(clampedX) + ",y_" + fmt(clampedY)
+                + ",w_" + fmtDim(clampedW) + ",h_" + fmtDim(clampedH);
         photo.setOriginalImageUrl(original);
         photo.setImageUrl(insertTransform(original, transform));
-        photo.setThumbnailUrl(insertTransform(original, transform + "/w_400,c_fill,q_auto"));
-        photo.setCropX(x);
-        photo.setCropY(y);
-        photo.setCropW(w);
-        photo.setCropH(h);
+        photo.setThumbnailUrl(insertTransform(original, transform + "/w_600,c_limit,q_auto"));
+        photo.setCropX(clampedX);
+        photo.setCropY(clampedY);
+        photo.setCropW(clampedW);
+        photo.setCropH(clampedH);
     }
 
     /** Restores the untouched upload URL and drops the saved crop metadata. */
@@ -330,11 +342,25 @@ public class GalleryService {
         photo.setCropH(null);
     }
 
-    /** Compact decimal for a 0..1 fraction (0.5, not 0.5000000000000001). */
+    /** Compact decimal for a 0..1 offset fraction (0, 0.5, etc.). */
     private String fmt(double v) {
         java.math.BigDecimal d = java.math.BigDecimal.valueOf(v)
                 .setScale(4, java.math.RoundingMode.HALF_UP);
         return d.signum() == 0 ? "0" : d.stripTrailingZeros().toPlainString();
+    }
+
+    /**
+     * Compact decimal for a 0..1 width/height fraction. When the value rounds
+     * to 1, keeps "1.0" so Cloudinary treats it as 100% relative size rather
+     * than 1 pixel ("w_1").
+     */
+    private String fmtDim(double v) {
+        java.math.BigDecimal d = java.math.BigDecimal.valueOf(v)
+                .setScale(4, java.math.RoundingMode.HALF_UP);
+        if (d.compareTo(java.math.BigDecimal.ONE) >= 0) {
+            return "1.0";
+        }
+        return d.signum() == 0 ? "0.0001" : d.stripTrailingZeros().toPlainString();
     }
 
     private String insertTransform(String secureUrl, String transformation) {
@@ -347,6 +373,6 @@ public class GalleryService {
     }
 
     private String deriveThumbnailUrl(String secureUrl) {
-        return insertTransform(secureUrl, "w_400,c_fill,q_auto");
+        return insertTransform(secureUrl, "w_600,c_limit,q_auto");
     }
 }
