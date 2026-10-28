@@ -3,6 +3,8 @@ package com.photography.backend.cloudinary;
 import com.cloudinary.Cloudinary;
 import com.cloudinary.Uploader;
 import com.photography.backend.common.exception.BusinessException;
+import com.photography.backend.gallery.dto.PhotoCompleteUploadRequest;
+import com.photography.backend.gallery.dto.PhotoUploadSignatureResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -17,6 +19,7 @@ import javax.imageio.ImageIO;
 import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Map;
@@ -66,19 +69,14 @@ class CloudinaryServiceUnitTest {
         ArgumentCaptor<byte[]> bytesCaptor = ArgumentCaptor.forClass(byte[].class);
         verify(uploader).upload(bytesCaptor.capture(), anyMap());
         assertArrayEquals(originalBytes, bytesCaptor.getValue(),
-                "Uploaded file must preserve 100% untouched original bytes");
+                "Images <= 2560px must preserve 100% untouched original bytes");
     }
 
     @Test
-    void uploadLargeFile_preservesOriginalBytesWithoutSizeLimitOrDownscaling() throws IOException {
-        byte[] largePayload = new byte[12_000_000];
-        largePayload[0] = (byte) 0xFF;
-        largePayload[1] = (byte) 0xD8;
-        largePayload[largePayload.length - 2] = (byte) 0xFF;
-        largePayload[largePayload.length - 1] = (byte) 0xD9;
-
+    void uploadOversizedImage_resizesLongestEdgeTo2560PreservingAspectRatio() throws IOException {
+        byte[] highResJpeg = createSampleJpeg(3840, 2560);
         MockMultipartFile file = new MockMultipartFile(
-                "file", "camera-original.jpg", "image/jpeg", largePayload);
+                "file", "camera-original.jpg", "image/jpeg", highResJpeg);
 
         when(uploader.upload(any(byte[].class), anyMap())).thenReturn(Map.of(
                 "secure_url", "https://res.cloudinary.com/demo/image/upload/v1/camera-original.jpg",
@@ -89,8 +87,10 @@ class CloudinaryServiceUnitTest {
 
         ArgumentCaptor<byte[]> bytesCaptor = ArgumentCaptor.forClass(byte[].class);
         verify(uploader).upload(bytesCaptor.capture(), anyMap());
-        assertArrayEquals(largePayload, bytesCaptor.getValue(),
-                "Large files must be uploaded with 100% untouched original bytes without size limits or downscaling");
+        BufferedImage uploadedImg = ImageIO.read(new ByteArrayInputStream(bytesCaptor.getValue()));
+        assertNotNull(uploadedImg);
+        assertEquals(2560, uploadedImg.getWidth());
+        assertEquals(1707, uploadedImg.getHeight());
     }
 
     @Test
@@ -170,6 +170,152 @@ class CloudinaryServiceUnitTest {
         // Subsequent upload must still acquire the permit immediately and succeed
         Map<String, Object> secondResult = cloudinaryService.uploadFile(file2, "portfolio");
         assertEquals("recover", secondResult.get("public_id"));
+    }
+
+    // ---------- Signed Direct Upload tests ----------
+
+    @Test
+    void createSignedUploadTicket_signsControlledParamsAndNeverExposesSecret() {
+        Cloudinary realCloudinary = new Cloudinary(Map.of(
+                "cloud_name", "bau-cloud",
+                "api_key", "123456789",
+                "api_secret", "super-secret-do-not-expose"
+        ));
+        CloudinaryService realService = new CloudinaryService(realCloudinary);
+
+        PhotoUploadSignatureResponse ticket = realService.createSignedUploadTicket(
+                "haibau/photos", "image/jpeg", 4_500_000L);
+
+        assertEquals("bau-cloud", ticket.getCloudName());
+        assertEquals("123456789", ticket.getApiKey());
+        assertEquals("haibau/photos", ticket.getFolder());
+        assertNotNull(ticket.getPublicId());
+        assertFalse(ticket.getPublicId().isBlank());
+        assertTrue(ticket.getTimestamp() > 0L);
+        assertEquals("https://api.cloudinary.com/v1_1/bau-cloud/image/upload", ticket.getUploadUrl());
+        assertNotNull(ticket.getSignature());
+        assertFalse(ticket.getSignature().contains("super-secret-do-not-expose"));
+
+        String expectedSig = realCloudinary.apiSignRequest(
+                Map.of(
+                        "folder", "haibau/photos",
+                        "public_id", ticket.getPublicId(),
+                        "timestamp", ticket.getTimestamp()
+                ),
+                "super-secret-do-not-expose"
+        );
+        assertEquals(expectedSig, ticket.getSignature());
+    }
+
+    @Test
+    void createSignedUploadTicket_rejectsUnsupportedMimeOrInvalidSize() {
+        Cloudinary realCloudinary = new Cloudinary(Map.of(
+                "cloud_name", "bau-cloud",
+                "api_key", "123456789",
+                "api_secret", "super-secret"
+        ));
+        CloudinaryService realService = new CloudinaryService(realCloudinary);
+
+        BusinessException badMime = assertThrows(BusinessException.class,
+                () -> realService.createSignedUploadTicket("haibau/photos", "application/pdf", 1024L));
+        assertEquals("UNSUPPORTED_IMAGE_FORMAT", badMime.getErrorCode());
+
+        BusinessException badSize = assertThrows(BusinessException.class,
+                () -> realService.createSignedUploadTicket("haibau/photos", "image/png", 0L));
+        assertEquals("INVALID_FILE_SIZE", badSize.getErrorCode());
+    }
+
+    @Test
+    void verifyAndBuildSecureUrl_acceptsValidSignatureAndBuildsTrustedCanonicalUrl() {
+        String secret = "my-cloudinary-secret";
+        Cloudinary realCloudinary = new Cloudinary(Map.of(
+                "cloud_name", "bau-cloud",
+                "api_key", "123456789",
+                "api_secret", secret
+        ));
+        CloudinaryService realService = new CloudinaryService(realCloudinary);
+
+        String publicId = "haibau/photos/a1b2c3d4-e5f6";
+        long version = 1730140000L;
+        String validResponseSig = realCloudinary.apiSignRequest(
+                Map.of("public_id", publicId, "version", String.valueOf(version)),
+                secret
+        );
+
+        PhotoCompleteUploadRequest req = new PhotoCompleteUploadRequest();
+        req.setPublicId(publicId);
+        req.setVersion(version);
+        req.setSignature(validResponseSig);
+        req.setResourceType("image");
+        req.setFormat("jpeg");
+        req.setBytes(5_200_000L);
+        req.setWidth(6000);
+        req.setHeight(4000);
+        req.setSecureUrl("https://res.cloudinary.com/bau-cloud/image/upload/v1730140000/haibau/photos/a1b2c3d4-e5f6.jpg");
+
+        String canonicalUrl = realService.verifyAndBuildSecureUrl("haibau/photos", req);
+        assertEquals(
+                "https://res.cloudinary.com/bau-cloud/image/upload/v1730140000/haibau/photos/a1b2c3d4-e5f6.jpg",
+                canonicalUrl
+        );
+    }
+
+    @Test
+    void verifyAndBuildSecureUrl_rejectsForgedSignatureWrongFolderOrUntrustedUrl() {
+        String secret = "my-cloudinary-secret";
+        Cloudinary realCloudinary = new Cloudinary(Map.of(
+                "cloud_name", "bau-cloud",
+                "api_key", "123456789",
+                "api_secret", secret
+        ));
+        CloudinaryService realService = new CloudinaryService(realCloudinary);
+
+        String publicId = "haibau/photos/valid-id";
+        long version = 1730140000L;
+        String validSig = realCloudinary.apiSignRequest(
+                Map.of("public_id", publicId, "version", String.valueOf(version)),
+                secret
+        );
+
+        // 1. Forged signature
+        PhotoCompleteUploadRequest forged = new PhotoCompleteUploadRequest();
+        forged.setPublicId(publicId);
+        forged.setVersion(version);
+        forged.setSignature("0000000000000000000000000000000000000000");
+        forged.setFormat("jpg");
+        forged.setBytes(1000L);
+        forged.setWidth(800);
+        forged.setHeight(600);
+        BusinessException sigEx = assertThrows(BusinessException.class,
+                () -> realService.verifyAndBuildSecureUrl("haibau/photos", forged));
+        assertEquals("INVALID_UPLOAD_SIGNATURE", sigEx.getErrorCode());
+
+        // 2. Outside allowed folder
+        PhotoCompleteUploadRequest wrongFolder = new PhotoCompleteUploadRequest();
+        wrongFolder.setPublicId("other/folder/asset");
+        wrongFolder.setVersion(version);
+        wrongFolder.setSignature(validSig);
+        wrongFolder.setFormat("jpg");
+        wrongFolder.setBytes(1000L);
+        wrongFolder.setWidth(800);
+        wrongFolder.setHeight(600);
+        BusinessException folderEx = assertThrows(BusinessException.class,
+                () -> realService.verifyAndBuildSecureUrl("haibau/photos", wrongFolder));
+        assertEquals("INVALID_PUBLIC_ID", folderEx.getErrorCode());
+
+        // 3. Mismatched external URL
+        PhotoCompleteUploadRequest untrustedUrl = new PhotoCompleteUploadRequest();
+        untrustedUrl.setPublicId(publicId);
+        untrustedUrl.setVersion(version);
+        untrustedUrl.setSignature(validSig);
+        untrustedUrl.setFormat("jpg");
+        untrustedUrl.setBytes(1000L);
+        untrustedUrl.setWidth(800);
+        untrustedUrl.setHeight(600);
+        untrustedUrl.setSecureUrl("https://evil.example.com/bau-cloud/image/upload/v1730140000/haibau/photos/valid-id.jpg");
+        BusinessException urlEx = assertThrows(BusinessException.class,
+                () -> realService.verifyAndBuildSecureUrl("haibau/photos", untrustedUrl));
+        assertEquals("INVALID_UPLOAD_URL", urlEx.getErrorCode());
     }
 
     private static byte[] createSampleJpeg(int width, int height) throws IOException {

@@ -29,6 +29,9 @@ public class CategoryService {
     /** Reserved slug of the Feedback category (seeded V15) — customer feedback screenshots. */
     public static final String FEEDBACK_CATEGORY_SLUG = "feedback";
 
+    /** Reserved slug of the Scroll category (seeded V18) — homepage scroll-driven hero photos only. */
+    public static final String SCROLL_CATEGORY_SLUG = "scroll";
+
     private final CategoryRepository categoryRepository;
 
     @Transactional(readOnly = true)
@@ -36,12 +39,13 @@ public class CategoryService {
         return categoryRepository.findAllByOrderBySortOrderAsc();
     }
 
-    /** Public list — portfolio categories only; package categories stay admin-side. */
+    /** Public list — portfolio categories only; package, feedback, and scroll categories stay admin-side. */
     @Transactional(readOnly = true)
     public List<Category> getPortfolioCategories() {
         return categoryRepository.findAllByTypeOrderBySortOrderAsc(CategoryType.PORTFOLIO)
                 .stream()
-                .filter(c -> !isPackageNaming(c.getName(), c.getSlug()))
+                .filter(c -> !isPackageNaming(c.getName(), c.getSlug())
+                        && !isScrollNaming(c.getName(), c.getSlug()))
                 .toList();
     }
 
@@ -50,6 +54,13 @@ public class CategoryService {
         String s = slug != null ? slug.trim().toLowerCase(Locale.ROOT) : "";
         return n.startsWith("gói") || n.startsWith("package")
                 || s.startsWith("goi-") || s.startsWith("package");
+    }
+
+    private boolean isScrollNaming(String name, String slug) {
+        String n = name != null ? name.trim().toLowerCase(Locale.ROOT) : "";
+        String s = slug != null ? slug.trim().toLowerCase(Locale.ROOT) : "";
+        return n.equals("scroll") || n.startsWith("scroll ")
+                || s.equals(SCROLL_CATEGORY_SLUG) || s.startsWith("scroll-");
     }
 
     @Transactional
@@ -61,6 +72,8 @@ public class CategoryService {
         category.setSortOrder(request.getSortOrder() != null ? request.getSortOrder() : 0);
         if (request.getType() != null) {
             category.setType(request.getType());
+        } else if (isScrollNaming(request.getName(), resolvedSlug)) {
+            category.setType(CategoryType.SCROLL);
         } else if (isPackageNaming(request.getName(), resolvedSlug)) {
             category.setType(CategoryType.PACKAGE);
         }
@@ -77,8 +90,14 @@ public class CategoryService {
                 .orElseThrow(() -> new BusinessException("Category not found", "NOT_FOUND", HttpStatus.NOT_FOUND));
         boolean reserved = ADMIN_CATEGORY_SLUG.equals(category.getSlug());
         boolean feedbackReserved = FEEDBACK_CATEGORY_SLUG.equals(category.getSlug());
+        boolean scrollReserved = SCROLL_CATEGORY_SLUG.equals(category.getSlug());
         category.setName(request.getName());
-        category.setSlug(reserved ? ADMIN_CATEGORY_SLUG : feedbackReserved ? FEEDBACK_CATEGORY_SLUG : resolveSlug(request));
+        category.setSlug(
+                reserved ? ADMIN_CATEGORY_SLUG
+                        : feedbackReserved ? FEEDBACK_CATEGORY_SLUG
+                        : scrollReserved ? SCROLL_CATEGORY_SLUG
+                        : resolveSlug(request)
+        );
         if (request.getSortOrder() != null) {
             category.setSortOrder(request.getSortOrder());
         }
@@ -89,6 +108,10 @@ public class CategoryService {
             }
             if (feedbackReserved && request.getType() != CategoryType.FEEDBACK) {
                 throw new BusinessException("Danh mục Feedback không thể đổi loại",
+                        "RESERVED_CATEGORY", HttpStatus.BAD_REQUEST);
+            }
+            if (scrollReserved && request.getType() != CategoryType.SCROLL) {
+                throw new BusinessException("Danh mục Scroll không thể đổi loại",
                         "RESERVED_CATEGORY", HttpStatus.BAD_REQUEST);
             }
             category.setType(request.getType());
@@ -110,6 +133,10 @@ public class CategoryService {
         }
         if (FEEDBACK_CATEGORY_SLUG.equals(category.getSlug())) {
             throw new BusinessException("Danh mục Feedback là danh mục hệ thống — không thể xoá",
+                    "RESERVED_CATEGORY", HttpStatus.BAD_REQUEST);
+        }
+        if (SCROLL_CATEGORY_SLUG.equals(category.getSlug())) {
+            throw new BusinessException("Danh mục Scroll là danh mục hệ thống — không thể xoá",
                     "RESERVED_CATEGORY", HttpStatus.BAD_REQUEST);
         }
         // photo_categories rows are removed by the FK ON DELETE CASCADE

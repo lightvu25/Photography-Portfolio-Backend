@@ -2,8 +2,11 @@ package com.photography.backend.gallery.service;
 
 import com.photography.backend.cloudinary.CloudinaryService;
 import com.photography.backend.common.exception.BusinessException;
+import com.photography.backend.gallery.dto.PhotoCompleteUploadRequest;
 import com.photography.backend.gallery.dto.PhotoReorderItem;
 import com.photography.backend.gallery.dto.PhotoUpdateRequest;
+import com.photography.backend.gallery.dto.PhotoUploadSignatureRequest;
+import com.photography.backend.gallery.dto.PhotoUploadSignatureResponse;
 import com.photography.backend.gallery.entity.Category;
 import com.photography.backend.gallery.entity.CategoryType;
 import com.photography.backend.gallery.entity.Photo;
@@ -22,6 +25,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 @Service
@@ -44,6 +48,16 @@ public class GalleryService {
     @Transactional(readOnly = true)
     public List<Photo> getPublishedFeedbackPhotos() {
         List<Photo> photos = photoRepository.findPublishedFeedbackPhotos();
+        for (Photo photo : photos) {
+            photo.getCategories().clear();
+        }
+        return photos;
+    }
+
+    /** Homepage scroll-driven hero photos (reserved Scroll category), published only. */
+    @Transactional(readOnly = true)
+    public List<Photo> getPublishedScrollPhotos() {
+        List<Photo> photos = photoRepository.findPublishedScrollPhotos();
         for (Photo photo : photos) {
             photo.getCategories().clear();
         }
@@ -80,6 +94,54 @@ public class GalleryService {
                 .orElseThrow(() -> new BusinessException("Photo not found", "NOT_FOUND", HttpStatus.NOT_FOUND));
     }
 
+    /**
+     * Phase A of Signed Direct Upload: issues a short-lived signature bound to
+     * {@link #PHOTO_FOLDER} and a server-generated UUID {@code public_id}.
+     */
+    public PhotoUploadSignatureResponse generateUploadSignature(PhotoUploadSignatureRequest request) {
+        String contentType = request != null ? request.getContentType() : null;
+        Long fileSizeBytes = request != null ? request.getFileSizeBytes() : null;
+        return cloudinaryService.createSignedUploadTicket(PHOTO_FOLDER, contentType, fileSizeBytes);
+    }
+
+    /**
+     * Phase C of Signed Direct Upload: verifies Cloudinary's response signature &
+     * folder scope, checks idempotency by {@code cloudinaryPublicId}, validates
+     * Category assignments, and persists the {@link Photo} row in PostgreSQL.
+     */
+    @Transactional
+    public Photo completePhotoUpload(PhotoCompleteUploadRequest request) {
+        String canonicalSecureUrl = cloudinaryService.verifyAndBuildSecureUrl(PHOTO_FOLDER, request);
+        String publicId = request.getPublicId().trim();
+
+        Optional<Photo> existing = photoRepository.findFirstByCloudinaryPublicIdOrderByIdAsc(publicId);
+        if (existing.isPresent()) {
+            log.info("Idempotent photo upload completion for existing publicId={}", publicId);
+            return existing.get();
+        }
+
+        Set<Category> categories = resolveCategories(request.getCategoryIds());
+
+        Photo photo = new Photo();
+        photo.setTitle(request.getTitle());
+        photo.setDescription(request.getDescription());
+        photo.setAltText(request.getAltText());
+        photo.setSortOrder(request.getSortOrder() != null ? request.getSortOrder() : 0);
+        photo.setCloudinaryPublicId(publicId);
+        photo.setImageUrl(canonicalSecureUrl);
+        photo.setThumbnailUrl(deriveThumbnailUrl(canonicalSecureUrl));
+        photo.setStatus(PhotoStatus.DRAFT);
+        photo.setCategories(categories);
+        if (request.getCropX() != null && request.getCropY() != null
+                && request.getCropW() != null && request.getCropH() != null) {
+            applyCrop(photo, request.getCropX(), request.getCropY(),
+                    request.getCropW(), request.getCropH());
+        }
+
+        return photoRepository.save(photo);
+    }
+
+    @Deprecated
     @Transactional
     public Photo uploadPhoto(MultipartFile file, String title, String description,
                              String altText, Integer sortOrder, Set<Long> categoryIds) {

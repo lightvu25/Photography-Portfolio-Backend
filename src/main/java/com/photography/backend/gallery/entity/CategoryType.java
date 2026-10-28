@@ -7,5 +7,8 @@ package com.photography.backend.gallery.entity;
  * gallery.
  * FEEDBACK is the reserved category for customer-feedback screenshots: those
  * photos are shown only in the feedback marquee and never in the gallery.
+ * SCROLL is the reserved category for homepage scroll-driven hero photos:
+ * those photos are shown only in the homepage scroll-driven section and never
+ * in the public gallery.
  */
-public enum CategoryType { PORTFOLIO, PACKAGE, FEEDBACK }
+public enum CategoryType { PORTFOLIO, PACKAGE, FEEDBACK, SCROLL }

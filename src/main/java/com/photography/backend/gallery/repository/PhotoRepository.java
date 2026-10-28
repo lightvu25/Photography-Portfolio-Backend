@@ -15,20 +15,29 @@ public interface PhotoRepository extends JpaRepository<Photo, Long> {
     List<Photo> findByStatusAndIsFeaturedTrueOrderBySortOrderAsc(PhotoStatus status);
 
     // Public gallery hides photos that belong to PACKAGE-type categories
-    // (pricing cover images), Feedback screenshots, or the reserved 'admin-noi-bo'
-    // self-introduction category.
+    // (pricing cover images), Feedback screenshots, Scroll hero photos, or the
+    // reserved 'admin-noi-bo' self-introduction category.
     String PUBLIC_ONLY = " AND (p.categories IS EMPTY OR EXISTS ("
             + "SELECT 1 FROM p.categories c WHERE c.type = com.photography.backend.gallery.entity.CategoryType.PORTFOLIO))"
             + " AND NOT EXISTS (SELECT 1 FROM p.categories r WHERE r.slug = 'admin-noi-bo')"
             + " AND NOT EXISTS (SELECT 1 FROM p.categories pkg WHERE pkg.type = com.photography.backend.gallery.entity.CategoryType.PACKAGE"
             + " OR LOWER(pkg.slug) LIKE 'goi-%' OR LOWER(pkg.name) LIKE 'gói%')"
-            + " AND NOT EXISTS (SELECT 1 FROM p.categories f WHERE f.type = com.photography.backend.gallery.entity.CategoryType.FEEDBACK)";
+            + " AND NOT EXISTS (SELECT 1 FROM p.categories f WHERE f.type = com.photography.backend.gallery.entity.CategoryType.FEEDBACK)"
+            + " AND NOT EXISTS (SELECT 1 FROM p.categories s WHERE s.type = com.photography.backend.gallery.entity.CategoryType.SCROLL"
+            + " OR LOWER(s.slug) = 'scroll' OR LOWER(s.name) = 'scroll')";
 
     /** Published photos in the reserved Feedback category — feedback marquee only. */
     @Query("SELECT DISTINCT p FROM Photo p LEFT JOIN FETCH p.categories WHERE p.status = 'PUBLISHED'"
             + " AND EXISTS (SELECT 1 FROM p.categories f WHERE f.type = com.photography.backend.gallery.entity.CategoryType.FEEDBACK)"
             + " ORDER BY p.sortOrder, p.id")
     List<Photo> findPublishedFeedbackPhotos();
+
+    /** Published photos in the reserved Scroll category — homepage scroll-driven hero only. */
+    @Query("SELECT DISTINCT p FROM Photo p LEFT JOIN FETCH p.categories WHERE p.status = 'PUBLISHED'"
+            + " AND EXISTS (SELECT 1 FROM p.categories s WHERE s.type = com.photography.backend.gallery.entity.CategoryType.SCROLL"
+            + " OR LOWER(s.slug) = 'scroll' OR LOWER(s.name) = 'scroll')"
+            + " ORDER BY p.sortOrder, p.id")
+    List<Photo> findPublishedScrollPhotos();
 
     @Query("SELECT DISTINCT p FROM Photo p LEFT JOIN FETCH p.categories WHERE p.status = 'PUBLISHED'" + PUBLIC_ONLY + " ORDER BY p.sortOrder")
     List<Photo> findPublishedWithCategories();
@@ -48,4 +57,6 @@ public interface PhotoRepository extends JpaRepository<Photo, Long> {
 
     @Query("SELECT DISTINCT p FROM Photo p LEFT JOIN FETCH p.categories WHERE p.id IN :ids")
     List<Photo> findAllByIdInWithCategories(@Param("ids") Collection<Long> ids);
+
+    Optional<Photo> findFirstByCloudinaryPublicIdOrderByIdAsc(String cloudinaryPublicId);
 }

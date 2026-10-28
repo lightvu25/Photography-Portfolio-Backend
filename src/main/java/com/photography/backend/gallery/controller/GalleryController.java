@@ -28,6 +28,12 @@ public class GalleryController {
         return ResponseEntity.ok(galleryService.getPublishedFeedbackPhotos());
     }
 
+    /** Published homepage scroll-driven hero photos (Scroll category only). */
+    @GetMapping("/scroll")
+    public ResponseEntity<List<Photo>> getScrollPhotos() {
+        return ResponseEntity.ok(galleryService.getPublishedScrollPhotos());
+    }
+
     @GetMapping("/featured")
     public ResponseEntity<List<Photo>> getFeaturedPhotos() {
         return ResponseEntity.ok(galleryService.getFeaturedPhotos());

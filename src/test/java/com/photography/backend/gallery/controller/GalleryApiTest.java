@@ -116,9 +116,11 @@ public class GalleryApiTest {
     @Test
     void adminPhotoMutationsRequireAuth() throws Exception {
         mockMvc.perform(get("/api/admin/photos")).andExpect(status().isUnauthorized());
-        mockMvc.perform(multipart("/api/admin/photos")
-                        .file(new org.springframework.mock.web.MockMultipartFile(
-                                "file", "p.jpg", "image/jpeg", new byte[]{1})))
+        mockMvc.perform(post("/api/admin/photos/upload-signature")
+                        .contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(post("/api/admin/photos")
+                        .contentType(MediaType.APPLICATION_JSON).content("{}"))
                 .andExpect(status().isUnauthorized());
         mockMvc.perform(put("/api/admin/photos/1")
                         .contentType(MediaType.APPLICATION_JSON).content("{}"))

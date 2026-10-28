@@ -5,6 +5,11 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
+image:
+  processing:
+    max-long-edge: 2560
+    max-dimension: 20000
+    max-pixels: 100000000
 app:
   security:
     jwt:

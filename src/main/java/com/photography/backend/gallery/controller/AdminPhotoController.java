@@ -1,8 +1,11 @@
 package com.photography.backend.gallery.controller;
 
 import com.photography.backend.gallery.dto.BulkCategoryRequest;
+import com.photography.backend.gallery.dto.PhotoCompleteUploadRequest;
 import com.photography.backend.gallery.dto.PhotoReorderItem;
 import com.photography.backend.gallery.dto.PhotoUpdateRequest;
+import com.photography.backend.gallery.dto.PhotoUploadSignatureRequest;
+import com.photography.backend.gallery.dto.PhotoUploadSignatureResponse;
 import com.photography.backend.gallery.entity.Photo;
 import com.photography.backend.gallery.service.GalleryService;
 import jakarta.validation.Valid;
@@ -11,10 +14,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
-import java.util.Set;
 
 @RestController
 @RequestMapping("/api/admin/photos")
@@ -28,20 +29,24 @@ public class AdminPhotoController {
         return ResponseEntity.ok(galleryService.getAllPhotos());
     }
 
-    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<Photo> uploadPhoto(
-            @RequestParam("file") MultipartFile file,
-            @RequestParam(required = false) String title,
-            @RequestParam(required = false) String description,
-            @RequestParam(required = false) String altText,
-            @RequestParam(required = false) Integer sortOrder,
-            @RequestParam(required = false) Set<Long> categoryIds,
-            @RequestParam(required = false) Double cropX,
-            @RequestParam(required = false) Double cropY,
-            @RequestParam(required = false) Double cropW,
-            @RequestParam(required = false) Double cropH) {
-        Photo photo = galleryService.uploadPhoto(file, title, description, altText, sortOrder,
-                categoryIds, cropX, cropY, cropW, cropH);
+    /**
+     * Phase A of Signed Direct Upload: generates a signed upload ticket for
+     * direct browser-to-Cloudinary upload.
+     */
+    @PostMapping("/upload-signature")
+    public ResponseEntity<PhotoUploadSignatureResponse> generateUploadSignature(
+            @RequestBody(required = false) PhotoUploadSignatureRequest request) {
+        return ResponseEntity.ok(galleryService.generateUploadSignature(request));
+    }
+
+    /**
+     * Phase C of Signed Direct Upload: verifies the completed Cloudinary asset
+     * and persists photo metadata + Category links in PostgreSQL.
+     */
+    @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Photo> completePhotoUpload(
+            @Valid @RequestBody PhotoCompleteUploadRequest request) {
+        Photo photo = galleryService.completePhotoUpload(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(photo);
     }
 
