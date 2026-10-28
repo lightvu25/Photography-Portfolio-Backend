@@ -17,10 +17,8 @@ import javax.imageio.ImageIO;
 import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
-import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -68,55 +66,31 @@ class CloudinaryServiceUnitTest {
         ArgumentCaptor<byte[]> bytesCaptor = ArgumentCaptor.forClass(byte[].class);
         verify(uploader).upload(bytesCaptor.capture(), anyMap());
         assertArrayEquals(originalBytes, bytesCaptor.getValue(),
-                "Files <= 9.5MB must be uploaded with 100% untouched original bytes");
+                "Uploaded file must preserve 100% untouched original bytes");
     }
 
     @Test
-    void uploadLargeResolutionJpegUnderLimit_preservesOriginalResolutionAndBytes() throws IOException {
-        byte[] highResJpeg = createSampleJpeg(3600, 2400);
-        assertTrue(highResJpeg.length < CloudinaryService.SAFE_TARGET_BYTES);
+    void uploadLargeFile_preservesOriginalBytesWithoutSizeLimitOrDownscaling() throws IOException {
+        byte[] largePayload = new byte[12_000_000];
+        largePayload[0] = (byte) 0xFF;
+        largePayload[1] = (byte) 0xD8;
+        largePayload[largePayload.length - 2] = (byte) 0xFF;
+        largePayload[largePayload.length - 1] = (byte) 0xD9;
+
         MockMultipartFile file = new MockMultipartFile(
-                "file", "studio-4k.jpg", "image/jpeg", highResJpeg);
+                "file", "camera-original.jpg", "image/jpeg", largePayload);
 
         when(uploader.upload(any(byte[].class), anyMap())).thenReturn(Map.of(
-                "secure_url", "https://res.cloudinary.com/demo/image/upload/v1/studio-4k.jpg",
-                "public_id", "portfolio/studio-4k"
+                "secure_url", "https://res.cloudinary.com/demo/image/upload/v1/camera-original.jpg",
+                "public_id", "portfolio/camera-original"
         ));
 
-        cloudinaryService.uploadFile(file, "portfolio/studio");
+        cloudinaryService.uploadFile(file, "portfolio/ngoai-canh");
 
         ArgumentCaptor<byte[]> bytesCaptor = ArgumentCaptor.forClass(byte[].class);
         verify(uploader).upload(bytesCaptor.capture(), anyMap());
-        assertArrayEquals(highResJpeg, bytesCaptor.getValue(),
-                "High-resolution JPEG under 9.5MB must not be re-encoded or downscaled");
-    }
-
-    @Test
-    void uploadOversizedImage_downscalesFromStreamWithoutCallingGetBytes() throws IOException {
-        byte[] sourceJpeg = createSampleJpeg(4000, 3000);
-        MultipartFile oversizedFile = mock(MultipartFile.class);
-        when(oversizedFile.getSize()).thenReturn(CloudinaryService.SAFE_TARGET_BYTES + 2_000_000L);
-        when(oversizedFile.getInputStream()).thenAnswer(inv -> new ByteArrayInputStream(sourceJpeg));
-
-        when(uploader.upload(any(byte[].class), anyMap())).thenReturn(Map.of(
-                "secure_url", "https://res.cloudinary.com/demo/image/upload/v1/downscaled.jpg",
-                "public_id", "portfolio/downscaled"
-        ));
-
-        cloudinaryService.uploadFile(oversizedFile, "portfolio/ngoai-canh");
-
-        // Verify getBytes() was NEVER called for an oversized (>9.5MB) file to avoid duplicate heap byte[]
-        verify(oversizedFile, never()).getBytes();
-
-        ArgumentCaptor<byte[]> bytesCaptor = ArgumentCaptor.forClass(byte[].class);
-        verify(uploader).upload(bytesCaptor.capture(), anyMap());
-        byte[] uploadedBytes = bytesCaptor.getValue();
-        assertTrue(uploadedBytes.length <= CloudinaryService.SAFE_TARGET_BYTES);
-
-        BufferedImage decoded = ImageIO.read(new ByteArrayInputStream(uploadedBytes));
-        assertNotNull(decoded);
-        assertEquals(3200, decoded.getWidth());
-        assertEquals(2400, decoded.getHeight());
+        assertArrayEquals(largePayload, bytesCaptor.getValue(),
+                "Large files must be uploaded with 100% untouched original bytes without size limits or downscaling");
     }
 
     @Test
